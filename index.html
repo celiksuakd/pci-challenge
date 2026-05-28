@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PCI CHALLENGE — Instrumentation Lockdown</title>
+<style>
+  :root {
+    --bg: #07090f;
+    --bg2: #0e1320;
+    --card: #131a2c;
+    --card2: #1a2340;
+    --text: #e6f1ff;
+    --muted: #6b7a99;
+    --accent: #00ff9f;
+    --accent2: #00d9ff;
+    --danger: #ff3860;
+    --warn: #ffb800;
+    --locked: #2a3147;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: "";
+    position: fixed; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(
+      0deg,
+      rgba(0,255,159,0.02) 0px,
+      rgba(0,255,159,0.02) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+    z-index: 9999;
+  }
+  body::after {
+    content: "";
+    position: fixed; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.5) 100%);
+    z-index: 9998;
+  }
+  #app {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 24px;
+    min-height: 100vh;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* HUD */
+  .hud {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 18px;
+    background: var(--card);
+    border: 1px solid var(--accent);
+    box-shadow: 0 0 20px rgba(0,255,159,0.15);
+    margin-bottom: 20px;
+    border-radius: 6px;
+  }
+  .hud-item { display: flex; gap: 8px; align-items: center; font-size: 14px; }
+  .hud-label { color: var(--muted); text-transform: uppercase; letter-spacing: 1px; font-size: 11px; }
+  .hud-value { color: var(--accent); font-weight: bold; font-size: 18px; }
+  .lives { display: flex; gap: 4px; }
+  .life { width: 18px; height: 18px; color: var(--danger); font-size: 18px; line-height: 1; }
+  .life.lost { color: var(--locked); }
+  .streak.hot .hud-value { color: var(--warn); text-shadow: 0 0 10px var(--warn); }
+  .streak.fire .hud-value { color: var(--danger); text-shadow: 0 0 14px var(--danger); animation: pulse 0.6s infinite; }
+
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+  }
+  @keyframes flicker {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  @keyframes glitch {
+    0% { transform: translate(0); }
+    20% { transform: translate(-3px, 2px); }
+    40% { transform: translate(3px, -2px); }
+    60% { transform: translate(-2px, -2px); }
+    80% { transform: translate(2px, 2px); }
+    100% { transform: translate(0); }
+  }
+
+  /* TITLE SCREEN */
+  .title-screen { text-align: center; padding-top: 80px; }
+  .title {
+    font-size: 64px;
+    letter-spacing: 4px;
+    color: var(--accent);
+    text-shadow: 0 0 24px var(--accent), 0 0 60px rgba(0,255,159,0.3);
+    margin-bottom: 12px;
+  }
+  .subtitle {
+    color: var(--accent2);
+    letter-spacing: 6px;
+    margin-bottom: 8px;
+    font-size: 14px;
+  }
+  .tagline {
+    color: var(--muted);
+    margin-bottom: 60px;
+    font-size: 15px;
+  }
+  .boot-log {
+    text-align: left;
+    max-width: 500px;
+    margin: 30px auto;
+    background: var(--bg2);
+    border: 1px solid var(--locked);
+    padding: 16px;
+    font-size: 12px;
+    color: var(--muted);
+    min-height: 140px;
+  }
+  .boot-log .line { margin: 2px 0; }
+  .boot-log .ok { color: var(--accent); }
+  .boot-log .warn { color: var(--warn); }
+
+  .btn {
+    background: transparent;
+    border: 2px solid var(--accent);
+    color: var(--accent);
+    padding: 14px 32px;
+    font-family: inherit;
+    font-size: 16px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    margin: 6px;
+  }
+  .btn:hover {
+    background: var(--accent);
+    color: var(--bg);
+    box-shadow: 0 0 24px var(--accent);
+  }
+  .btn.secondary { border-color: var(--muted); color: var(--muted); }
+  .btn.secondary:hover { background: var(--muted); color: var(--bg); box-shadow: none; }
+  .btn.danger { border-color: var(--danger); color: var(--danger); }
+  .btn.danger:hover { background: var(--danger); color: var(--bg); box-shadow: 0 0 24px var(--danger); }
+  .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* MAP */
+  .map-header { text-align: center; margin-bottom: 24px; }
+  .map-title { font-size: 28px; color: var(--accent); letter-spacing: 3px; }
+  .map-sub { color: var(--muted); font-size: 13px; margin-top: 6px; }
+  .room-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  .room-card {
+    background: var(--card);
+    border: 1px solid var(--locked);
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    min-height: 140px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .room-card.unlocked {
+    border-color: var(--accent2);
+    box-shadow: 0 0 12px rgba(0,217,255,0.2);
+  }
+  .room-card.unlocked:hover {
+    transform: translateY(-3px);
+    border-color: var(--accent);
+    box-shadow: 0 0 24px rgba(0,255,159,0.4);
+  }
+  .room-card.completed {
+    border-color: var(--accent);
+    background: linear-gradient(135deg, var(--card) 0%, rgba(0,255,159,0.06) 100%);
+  }
+  .room-card.locked { opacity: 0.4; cursor: not-allowed; }
+  .room-card.boss {
+    grid-column: span 2;
+    background: linear-gradient(135deg, var(--card2) 0%, rgba(255,56,96,0.08) 100%);
+    border-color: var(--danger);
+  }
+  .room-card.boss.locked { border-color: var(--locked); }
+  .room-id {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    margin-bottom: 4px;
+  }
+  .room-name { font-size: 14px; font-weight: 600; line-height: 1.4; color: var(--text); }
+  .room-date { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .room-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
+  .stars { color: var(--warn); letter-spacing: 2px; font-size: 14px; }
+  .mastery { font-size: 11px; color: var(--accent); }
+  .lock-icon { color: var(--muted); }
+
+  /* ROOM (in-game) */
+  .question-screen { padding: 0; }
+  .question-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--locked);
+  }
+  .breadcrumb { color: var(--muted); font-size: 12px; letter-spacing: 2px; }
+  .breadcrumb .accent { color: var(--accent); }
+  .q-progress { color: var(--accent2); font-size: 13px; }
+
+  .question-card {
+    background: var(--card);
+    border: 1px solid var(--accent2);
+    padding: 28px;
+    margin-bottom: 20px;
+    box-shadow: 0 0 30px rgba(0,217,255,0.1);
+  }
+  .q-type-badge {
+    display: inline-block;
+    background: var(--bg2);
+    color: var(--accent2);
+    padding: 4px 10px;
+    font-size: 10px;
+    letter-spacing: 2px;
+    margin-bottom: 16px;
+    border: 1px solid var(--accent2);
+  }
+  .q-prompt {
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 18px;
+    line-height: 1.6;
+    margin-bottom: 24px;
+    color: var(--text);
+  }
+  .q-prompt code, .q-prompt .eq {
+    font-family: ui-monospace, monospace;
+    background: var(--bg2);
+    padding: 1px 6px;
+    color: var(--accent);
+    border-radius: 3px;
+  }
+
+  /* MCQ options */
+  .options { display: flex; flex-direction: column; gap: 10px; }
+  .option {
+    background: var(--bg2);
+    border: 1px solid var(--locked);
+    padding: 14px 18px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 15px;
+    color: var(--text);
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .option:hover { border-color: var(--accent2); background: var(--card2); }
+  .option.selected { border-color: var(--accent); background: rgba(0,255,159,0.08); }
+  .option.correct { border-color: var(--accent); background: rgba(0,255,159,0.18); box-shadow: 0 0 16px rgba(0,255,159,0.3); }
+  .option.wrong { border-color: var(--danger); background: rgba(255,56,96,0.15); animation: glitch 0.3s; }
+  .option-letter {
+    display: inline-block;
+    width: 28px; height: 28px;
+    border: 1px solid var(--muted);
+    text-align: center;
+    line-height: 26px;
+    font-weight: bold;
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+  .option.selected .option-letter, .option.correct .option-letter { border-color: var(--accent); color: var(--accent); }
+  .option.wrong .option-letter { border-color: var(--danger); color: var(--danger); }
+
+  /* Numeric input */
+  .numeric-wrap { display: flex; gap: 12px; align-items: center; }
+  .numeric-input {
+    background: var(--bg2);
+    border: 1px solid var(--accent2);
+    color: var(--accent);
+    padding: 14px 18px;
+    font-family: inherit;
+    font-size: 24px;
+    width: 200px;
+    text-align: center;
+    letter-spacing: 1px;
+  }
+  .numeric-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 12px var(--accent); }
+  .numeric-units { color: var(--muted); font-size: 14px; }
+
+  /* Match */
+  .match-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .match-col-label {
+    color: var(--accent2);
+    font-size: 11px;
+    letter-spacing: 2px;
+    margin-bottom: 6px;
+  }
+  .match-item {
+    background: var(--bg2);
+    border: 1px solid var(--locked);
+    padding: 12px;
+    cursor: pointer;
+    margin-bottom: 8px;
+    transition: all 0.15s;
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 14px;
+  }
+  .match-item:hover { border-color: var(--accent2); }
+  .match-item.selected { border-color: var(--accent); background: rgba(0,255,159,0.1); }
+  .match-item.paired { opacity: 0.5; cursor: default; border-color: var(--accent); background: rgba(0,255,159,0.05); }
+  .match-pair-tag { display: inline-block; color: var(--accent); margin-right: 6px; font-weight: bold; }
+
+  /* Feedback */
+  .feedback {
+    margin-top: 20px;
+    padding: 16px;
+    border-left: 3px solid;
+    background: var(--bg2);
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .feedback.correct { border-color: var(--accent); }
+  .feedback.wrong { border-color: var(--danger); }
+  .feedback-title { font-weight: bold; margin-bottom: 6px; font-family: inherit; letter-spacing: 2px; }
+  .feedback.correct .feedback-title { color: var(--accent); }
+  .feedback.wrong .feedback-title { color: var(--danger); }
+  .feedback-explain { color: var(--muted); }
+
+  .q-actions { margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px; }
+
+  /* Results */
+  .result-screen { text-align: center; padding: 40px 0; }
+  .result-headline { font-size: 32px; color: var(--accent); letter-spacing: 4px; margin-bottom: 12px; }
+  .result-headline.fail { color: var(--danger); }
+  .result-room { color: var(--muted); margin-bottom: 32px; }
+  .result-stats {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    margin-bottom: 40px;
+  }
+  .result-stat { }
+  .result-stat-value { font-size: 36px; color: var(--accent); font-weight: bold; }
+  .result-stat-label { font-size: 11px; color: var(--muted); letter-spacing: 2px; margin-top: 4px; }
+  .result-stars { font-size: 48px; color: var(--warn); letter-spacing: 8px; margin: 20px 0; }
+
+  /* Boss screen accent */
+  .boss-mode .question-card { border-color: var(--danger); box-shadow: 0 0 24px rgba(255,56,96,0.2); }
+  .boss-mode .q-type-badge { border-color: var(--danger); color: var(--danger); }
+  .boss-timer { color: var(--danger); font-size: 24px; font-weight: bold; letter-spacing: 2px; }
+  .boss-timer.critical { animation: flicker 0.4s infinite; }
+
+  /* Misc */
+  .center { text-align: center; }
+  .mt-lg { margin-top: 32px; }
+  .ascii { font-family: monospace; white-space: pre; line-height: 1.1; color: var(--accent); opacity: 0.5; font-size: 11px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+// ============================================================
+// QUESTION BANK — DCoCP (Dynamics and Control of Chemical Processes)
+// Course: Prof. Matteo Pelucchi, Politecnico di Milano, AY 2025/26
+// Based on Stephanopoulos "Chemical Process Control" + course calendar
+// ============================================================
+
+const ROOMS = [
+  {
+    id: 'L1', date: 'WK1', name: 'Process Variables & Objectives', questions: [
+      { type: 'mcq', prompt: 'The standard safety hierarchy of process-control objectives (most → least critical) is:',
+        options: ['Economics → Safety → Quality → Production', 'Safety → Environment → Specifications/Quality → Economics', 'Production → Safety → Quality → Cost', 'Throughput → Safety → Environment → Cost'],
+        correct: 1, explain: 'Manca\'s mantra: SAFETY first, then ENVIRONMENT, then PRODUCT QUALITY/SPECS, then ECONOMICS. Optimization happens within the safety envelope, never outside it.' },
+      { type: 'mcq', prompt: 'The MANIPULATED variable (MV) is:',
+        options: ['The output being controlled', 'The variable the controller directly adjusts (typically a valve position)', 'An uncontrolled disturbance', 'The setpoint'],
+        correct: 1, explain: 'MV = the lever the controller pulls. Most commonly a control-valve stem position, sometimes a pump speed or heater duty.' },
+      { type: 'match', prompt: 'Match each ISA P&ID tag to its meaning.',
+        pairs: [
+          { left: 'TIC', right: 'Temperature Indicator Controller' },
+          { left: 'FT', right: 'Flow Transmitter' },
+          { left: 'LIC', right: 'Level Indicator Controller' },
+          { left: 'PSV', right: 'Pressure Safety Valve' }
+        ], explain: 'ISA-5.1 letters: first letter = measured variable (T,F,L,P), then function (I=indicator, C=controller, T=transmitter, SV=safety valve). Memorize the alphabet.' },
+      { type: 'mcq', prompt: 'Which is NOT a typical control objective in a chemical plant?',
+        options: ['Safety of personnel and equipment', 'Maintaining product specification', 'Environmental compliance', 'Maximizing the operating range of every instrument'],
+        correct: 3, explain: 'Instruments are sized for the actual operating envelope — running a valve at 5% open is BAD (poor controllability, erosion). Wider range ≠ better.' },
+      { type: 'error', prompt: 'Three statements are TRUE, one is FALSE.',
+        statements: [
+          'Disturbances (d) are inputs we cannot or choose not to manipulate',
+          'Open-loop control automatically corrects for disturbances',
+          'The controller acts on the ERROR e = SP − PV',
+          'Setpoints are typically supplied by operations or higher-level optimization'
+        ], wrongIndex: 1, explain: 'Open-loop = no measurement of PV → no information to react to disturbances. This is exactly why feedback exists.' }
+    ]
+  },
+  {
+    id: 'L2', date: 'WK2', name: 'Sensors & Measurement Principles', questions: [
+      { type: 'mcq', prompt: 'A thermocouple measures temperature via:',
+        options: ['Resistance change with T (used in Pt100)', 'Seebeck effect — EMF generated at the junction of two dissimilar metals', 'Thermal expansion of a fluid', 'Blackbody radiation'],
+        correct: 1, explain: 'TCs generate a small voltage (mV-range) at the junction proportional to ΔT vs a reference. Cheap, fast, wide range — at the cost of accuracy and cold-junction compensation.' },
+      { type: 'mcq', prompt: 'A Pt100 RTD at 0°C has resistance:',
+        options: ['0 Ω', '100 Ω', '1000 Ω', '50 Ω'],
+        correct: 1, explain: 'Pt100 = platinum, 100 Ω at 0°C. α ≈ 0.00385 Ω/Ω/°C. Pt1000 also exists (1000 Ω at 0°C) — higher resolution for low-current loops.' },
+      { type: 'mcq', prompt: 'For volumetric flow of a clean single-phase liquid, the most common (cheapest) differential-pressure device is:',
+        options: ['Coriolis mass meter', 'Orifice plate', 'Pitot tube', 'Magnetic flowmeter'],
+        correct: 1, explain: 'Orifice plate + DP cell is the workhorse — cheap, standardized (ISO 5167), no moving parts. Coriolis is most accurate but ~10× the cost.' },
+      { type: 'numeric', prompt: 'Orifice equation: Q = K·√(ΔP/ρ). If the measured ΔP DOUBLES, by what factor does the indicated flow Q change? (3 d.p.)',
+        answer: 1.414, tolerance: 0.02, units: '× original',
+        explain: 'Q ∝ √ΔP. Doubling ΔP → Q × √2 ≈ 1.414. This is also why DP-flow signals are typically square-root extracted before display.' },
+      { type: 'match', prompt: 'Match each sensor to its typical strong-suit application.',
+        pairs: [
+          { left: 'Thermocouple', right: 'Wide-range / harsh-environment temperature' },
+          { left: 'Pt100 RTD', right: 'High-accuracy temperature at moderate range' },
+          { left: 'Orifice plate', right: 'Volumetric flow of clean liquid/gas' },
+          { left: 'DP cell on tank', right: 'Liquid level via hydrostatic ΔP' }
+        ], explain: 'Knowing which sensor to pick for a given service is half the instrumentation exam. Match physical principle to the process.' }
+    ]
+  },
+  {
+    id: 'L3', date: 'WK3', name: 'Signals, Transmitters, Calibration', questions: [
+      { type: 'mcq', prompt: 'The modern standard for analog current signals in instrumentation is:',
+        options: ['0–10 V', '4–20 mA', '0–100 mA', '0–5 V'],
+        correct: 1, explain: '4–20 mA: standard across DCS, PLC, transmitters. Current loops are noise-immune over long distances and self-powered with HART overlay.' },
+      { type: 'mcq', prompt: 'Why is 4 mA chosen as the LIVE ZERO rather than 0 mA?',
+        options: ['Easier to read on a panel meter', 'Distinguishes a real "0% PV" reading from a broken wire (0 mA = open circuit = fault)', 'Lower power consumption', 'IEC mandates 4 mA'],
+        correct: 1, explain: 'Live-zero diagnostic: if the loop reads <3.5 mA you know it\'s a hardware fault, not the process at 0. Critical for safety logic.' },
+      { type: 'mcq', prompt: 'The legacy pneumatic instrumentation signal standard is:',
+        options: ['0–100 kPa', '3–15 psi (≈ 20–100 kPa)', '0–1 bar', '50–150 kPa'],
+        correct: 1, explain: '3 psi at 0%, 15 psi at 100%. Same live-zero philosophy as 4–20 mA. Still found on older plants and intrinsically safe areas.' },
+      { type: 'numeric', prompt: 'A temperature transmitter is calibrated: LRV = 0°C, URV = 100°C, output 4–20 mA. What current corresponds to a process T of 50°C? (mA)',
+        answer: 12, tolerance: 0.2, units: 'mA',
+        explain: 'Linear: I = 4 + (T − LRV)/(URV − LRV) × 16 = 4 + 0.5·16 = 12 mA. Memorize: 4-8-12-16-20 → 0-25-50-75-100%.' },
+      { type: 'error', prompt: 'Three are TRUE, one is FALSE.',
+        statements: [
+          'Transmitter ZERO = lower range value (LRV)',
+          'Transmitter SPAN = URV − LRV',
+          'HART protocol superimposes a digital signal on the 4–20 mA loop',
+          'The 4–20 mA standard is unsuitable for long-distance signal transmission'
+        ], wrongIndex: 3, explain: 'False. Current loops are EXCELLENT for long distances (low voltage-drop sensitivity, immune to EMI). That\'s a key reason they replaced voltage signaling.' }
+    ]
+  },
+  {
+    id: 'L4', date: 'WK4', name: 'Process Modeling (Time Domain)', questions: [
+      { type: 'mcq', prompt: 'For a tank of cross-section A with gravity outflow F = c·h (linearized), the time constant is:',
+        options: ['τ = A/c', 'τ = A·c', 'τ = c/A', 'τ = A·h_s/F_s'],
+        correct: 0, explain: 'From dh/dt = (F_in − c·h)/A, the homogeneous eigenvalue is −c/A → τ = A/c. The geometry (A) sets capacity; the resistance (c) sets drainage rate.' },
+      { type: 'mcq', prompt: 'Species-A mass balance on an isothermal CSTR (constant V, A → B with r = k·C_A):',
+        options: ['V dC_A/dt = F(C_A,0 − C_A) − k·C_A·V', 'F·C_A,0 = F·C_A + r·V (only true at SS)', 'dC_A/dt = −k·C_A (drops convection)', 'C_A = C_A,0 / (1 + k·τ) (only true at SS)'],
+        correct: 0, explain: 'Full dynamic balance: accumulation = in − out − generation. Options B and D are valid only at steady state; option C drops the flow terms.' },
+      { type: 'mcq', prompt: 'A "self-regulating" process is one that, after a step input change:',
+        options: ['Returns to its original value', 'Settles at a new steady state without controller action', 'Oscillates indefinitely', 'Diverges'],
+        correct: 1, explain: 'Self-regulating = naturally finds a new SS. Examples: tank with gravity outflow, heat exchanger. Non-self-regulating = pure integrator (tank with positive-displacement pump out).' },
+      { type: 'numeric', prompt: 'Linearized tank: A = 1 m², τ = 5 min, gain K = 2 m/(m³/h). Step Δq_in = 0.5 m³/h. Final steady-state Δh = K·Δq = ? (m)',
+        answer: 1, tolerance: 0.02, units: 'm',
+        explain: 'For a 1st-order self-regulating system, new-SS deviation = (steady gain) × (step magnitude) = 2·0.5 = 1 m. Time to reach it is governed by τ.' },
+      { type: 'match', prompt: 'Match each unit to its typical dominant time constant.',
+        pairs: [
+          { left: 'Bare thermocouple in liquid', right: 'Seconds' },
+          { left: 'Pressure in a gas pipe', right: 'Sub-second' },
+          { left: 'Surge tank level', right: 'Minutes' },
+          { left: 'Distillation column composition', right: 'Hours' }
+        ], explain: 'Order-of-magnitude thinking saves you in tuning. A controller faster than the dominant τ over-corrects; slower than τ under-corrects.' }
+    ]
+  },
+  {
+    id: 'L5', date: 'WK5', name: 'First & Second Order Dynamics', questions: [
+      { type: 'mcq', prompt: 'For a 1st-order step response, at t = 3τ the response reaches what % of the final value?',
+        options: ['63.2%', '86.5%', '95.0%', '99.3%'],
+        correct: 2, explain: 'y(3τ)/y(∞) = 1 − e⁻³ ≈ 0.950. The "1-3-5 τ rule": 63% / 95% / 99% reached at 1τ / 3τ / 5τ.' },
+      { type: 'mcq', prompt: 'A 2nd-order OVERDAMPED step response (ζ > 1) shows:',
+        options: ['Oscillation around the final value', 'Monotonic approach to SS, no overshoot, slower than critical damping', 'Initial inverse response', 'Divergence'],
+        correct: 1, explain: 'Two real distinct poles. Slower than ζ=1 but smooth — favored when overshoot is unacceptable (e.g., reactor T near runaway).' },
+      { type: 'numeric', prompt: 'A 1st-order system has τ = 4 min. Approximate 5%-settling time? (min)',
+        answer: 12, tolerance: 0.5, units: 'min',
+        explain: 't_settle (5%) ≈ 3τ = 12 min. Useful rule of thumb for sizing closed-loop response targets.' },
+      { type: 'mcq', prompt: 'A 2nd-order UNDERDAMPED step with ζ = 0.4. Approximate peak overshoot M_p?',
+        options: ['~5%', '~15%', '~25%', '~45%'],
+        correct: 2, explain: 'M_p = exp(−πζ/√(1−ζ²)) = exp(−π·0.4/√0.84) ≈ 25%. ζ = 0.7 gives ~5% (a common design target).' },
+      { type: 'error', prompt: 'One statement is FALSE.',
+        statements: [
+          'Time constant τ has units of time',
+          'Steady-state gain K is dimensional (output units per input units)',
+          'Damping ratio ζ is dimensionless',
+          'A HIGHER damping ratio means a FASTER response'
+        ], wrongIndex: 3, explain: 'Backwards. Higher ζ → MORE damped → SLOWER (but smoother). Speed and damping trade off; tuning is the art of choosing the balance.' }
+    ]
+  },
+  {
+    id: 'L6', date: 'WK6', name: 'Feedback Control: P, PI, PID', questions: [
+      { type: 'mcq', prompt: 'P-controller output: u(t) = K_c·e(t) + u_bias. Increasing K_c generally:',
+        options: ['Slows response, increases stability', 'Speeds response, reduces stability margin (eventually causes oscillation)', 'Always destabilizes immediately', 'Eliminates offset'],
+        correct: 1, explain: 'Higher K_c = stiffer, faster, but trades against stability. At K_c = K_cu (ultimate gain) the loop sits on the stability boundary.' },
+      { type: 'mcq', prompt: 'Why does PI eliminate the steady-state offset that P alone leaves?',
+        options: ['Integral term keeps changing u while e ≠ 0, so e must drive to 0 at SS', 'P term is doubled', 'D term acts', 'Bias is automatically updated'],
+        correct: 0, explain: 'At SS, dI/dt = 0 requires e = 0 — that\'s the definition of integral action. P alone cannot do this because u_bias is fixed.' },
+      { type: 'mcq', prompt: 'Derivative kick is:',
+        options: ['Integrator wind-up', 'The large derivative-term spike when the SETPOINT steps instantaneously', 'Valve hunting at low opening', 'A safety interlock'],
+        correct: 1, explain: 'A step in SP means a huge instantaneous de/dt → huge D term → big bump to MV. Fix: take derivative on PV (not error) — "derivative-on-PV" mode.' },
+      { type: 'numeric', prompt: 'P-controller K_c = 5 (with u_bias = 0). Error e = 0.4. Controller output u?',
+        answer: 2, tolerance: 0.01, units: '',
+        explain: 'u = K_c · e + u_bias = 5 · 0.4 + 0 = 2. Trivially the proportional term defines the controller\'s "stiffness".' },
+      { type: 'error', prompt: 'One is FALSE.',
+        statements: [
+          'Direct-acting controller: output INCREASES when PV increases above SP',
+          'Reverse-acting controller: output DECREASES when PV increases above SP',
+          'Direct vs reverse is chosen based on process gain sign AND valve fail-action (FO/FC)',
+          'Action mode (direct/reverse) is a cosmetic display setting only'
+        ], wrongIndex: 3, explain: 'Action mode is FUNCTIONAL — get it backwards and you have positive feedback (the loop runs away). It\'s chosen so the overall loop gain is negative.' }
+    ]
+  },
+  {
+    id: 'L7', date: 'WK7', name: 'Controller Tuning', questions: [
+      { type: 'mcq', prompt: 'Ziegler–Nichols OPEN-loop (Process Reaction Curve) tuning is based on:',
+        options: ['Sustained closed-loop oscillation', 'Fitting a FOPDT model (K, τ, θ) to a step response', 'A Bode plot', 'Manual rule of thumb only'],
+        correct: 1, explain: 'PRC: step the input, log the response, fit first-order-plus-deadtime, plug K, τ, θ into the Z–N table. Quick first-pass tuning.' },
+      { type: 'mcq', prompt: 'Ziegler–Nichols CLOSED-loop ("continuous cycling") method requires:',
+        options: ['An open-loop step', 'Ultimate gain K_cu and ultimate period P_u at the onset of sustained oscillation', 'A pole-zero map', 'Cohen–Coon coefficients'],
+        correct: 1, explain: 'Disable I and D, raise K_c until sustained oscillation, read K_cu and P_u. Then Z–N PID: K_c = 0.6·K_cu, τ_I = P_u/2, τ_D = P_u/8.' },
+      { type: 'numeric', prompt: 'Z–N closed-loop tuning: K_cu = 10, P_u = 4 min. PID gives K_c = 0.6·K_cu = ?',
+        answer: 6, tolerance: 0.05, units: '',
+        explain: 'K_c = 0.6·10 = 6. Companions: τ_I = P_u/2 = 2 min, τ_D = P_u/8 = 0.5 min. Z–N is aggressive — usually you back off after testing.' },
+      { type: 'mcq', prompt: 'Compared to Ziegler–Nichols, the Cohen–Coon method:',
+        options: ['Is for closed-loop only', 'Uses the same FOPDT parameters and is tighter for processes with significant dead time', 'Ignores deadtime', 'Requires a Bode plot'],
+        correct: 1, explain: 'Cohen–Coon was designed specifically for dead-time-dominant FOPDT (θ/τ > ~0.3). Tighter than Z–N at the cost of more sensitivity to model error.' },
+      { type: 'error', prompt: 'One is FALSE.',
+        statements: [
+          'Tuning is almost always iterative, not one-shot',
+          'Aggressive tuning gives fast response but more overshoot/oscillation',
+          'Conservative tuning gives slow but smooth response',
+          'A single set of PID parameters works on any process'
+        ], wrongIndex: 3, explain: 'Each loop has its own personality (dynamics + disturbance profile). Universal tuning is the myth that sells DCS auto-tuners.' }
+    ]
+  },
+  {
+    id: 'L8', date: 'WK8', name: 'Valves & Advanced Loops', questions: [
+      { type: 'mcq', prompt: 'In the liquid control-valve equation Q = C_v·√(ΔP/SG), C_v represents:',
+        options: ['Valve cost coefficient', 'Flow capacity — gallons/min of water at 1 psi drop', 'Valve travel position', 'A cavitation safety margin'],
+        correct: 1, explain: 'C_v is the imperial flow coefficient; K_v is the metric equivalent. Sizing rule: choose valve so it sits roughly 60–80% open at design flow.' },
+      { type: 'mcq', prompt: 'An EQUAL-PERCENTAGE valve characteristic means:',
+        options: ['Linear flow vs stem position', 'Equal % change in flow per equal % change in stem position (exponential)', 'Always fully open or closed', 'Max flow at 50% travel'],
+        correct: 1, explain: 'Equal-%: dQ/dx ∝ Q. Compensates installed characteristic when most pressure drop is across piping. Linear valves preferred when ΔP across valve is roughly constant.' },
+      { type: 'mcq', prompt: 'CASCADE control improves disturbance rejection when:',
+        options: ['Inner (secondary) loop is FASTER than outer and the disturbance enters near the MV', 'There is no outer-loop measurement', 'The MV is constant', 'The setpoint never moves'],
+        correct: 0, explain: 'Rule of thumb: inner loop should be at least 3–5× faster than outer. Classic example: outer T loop sets the SP of an inner steam-flow loop.' },
+      { type: 'mcq', prompt: 'FEEDFORWARD control requires:',
+        options: ['Only a CV measurement', 'A disturbance measurement AND a model of the disturbance path', 'Stability analysis', 'Manual operator action'],
+        correct: 1, explain: 'No measurement of the disturbance → no feedforward possible. No model → no compensation calc. FF complements feedback; it does not replace it.' },
+      { type: 'mcq', prompt: 'Fail-safe action of a control valve on the STEAM supply to a highly exothermic reactor should be:',
+        options: ['Fail open', 'Fail closed (stop the heating on loss of air/power)', 'Fail in last position', 'No preference'],
+        correct: 1, explain: 'On loss of instrument air, the valve must drive to the SAFE state. For exothermic heating: cut steam (fail-closed). For cooling water: keep it flowing (fail-open).' }
+    ]
+  }
+];
+
+// Boss round: shuffled mix + a few exclusive integrative questions
+const BOSS_EXCLUSIVE = [
+  { type: 'mcq', prompt: 'A control loop is "hunting" — oscillating around setpoint with small amplitude. First diagnostic move:',
+    options: ['Increase K_c', 'Decrease K_c and/or increase τ_I (back off)', 'Add or increase D action immediately', 'Switch to manual indefinitely'],
+    correct: 1, explain: 'Hunting = under-damped tuning. Detune first. D-action without P/I rebalance can amplify noise. Manual is a non-solution.' },
+  { type: 'mcq', prompt: 'A control valve has been running at <10% open for months. The consequence is:',
+    options: ['Maximum energy efficiency', 'Poor controllability + erosion: valve is oversized — resize', 'Improved linearity', 'Reduced wear'],
+    correct: 1, explain: 'At low openings, installed gain is high and unstable; flow becomes choppy; trim erodes. Sizing target ~60–80% open at design flow.' },
+  { type: 'mcq', prompt: 'A heat exchanger has θ = 5 min dead time and τ = 10 min. Best initial controller choice:',
+    options: ['Pure P', 'PI with conservative tuning (PID with Smith predictor if available)', 'Pure D', 'On–off'],
+    correct: 1, explain: 'θ/τ = 0.5 is dead-time significant. Pure P leaves offset; D amplifies noise; on-off cycles. PI is the safe default.' },
+  { type: 'mcq', prompt: 'A 4–20 mA loop reads 3.2 mA at the DCS. The correct interpretation is:',
+    options: ['A valid low-end PV reading', 'Loop fault — open wire, dead transmitter, or low loop voltage (live-zero violation)', 'Process is at exactly 0%', 'Calibration is successful'],
+    correct: 1, explain: 'Anything below ~3.5 mA is NAMUR-43 "bad PV" — should trigger alarm and force the controller to safe state. The live-zero exists exactly for this diagnostic.' },
+  { type: 'numeric', prompt: 'Pt100 RTD reads 138.5 Ω. Approximate temperature using R = R₀(1 + α·T) with R₀ = 100 Ω at 0°C and α = 0.00385 /°C. T ≈ ? (°C, nearest integer)',
+    answer: 100, tolerance: 2, units: '°C',
+    explain: 'T = (R/R₀ − 1)/α = (1.385 − 1)/0.00385 ≈ 100°C. The Pt100 nominal calibration point you should memorize: 100 Ω at 0°C, ~138.5 Ω at 100°C.' }
+];
+
+// ============================================================
+// STATE
+// ============================================================
+const SAVE_KEY = 'pci_challenge_v1';
+let state = loadState();
+
+function defaultState() {
+  return {
+    screen: 'title',
+    lives: 3,
+    score: 0,
+    streak: 0,
+    bestStreak: 0,
+    totalXp: 0,
+    currentRoomId: null,
+    currentQIdx: 0,
+    currentAnswer: null,
+    answered: false,
+    lastCorrect: null,
+    roomResults: [],  // per-question correct/wrong for current room
+    progress: {},     // { L1: { stars: 3, mastery: 100, completed: true }, ... }
+    bossUnlocked: false,
+    bossDone: false,
+    bossTimer: null,
+    bossStartTime: null,
+  };
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return defaultState();
+    const saved = JSON.parse(raw);
+    return { ...defaultState(), ...saved, screen: 'title' };  // always return to title on reload
+  } catch (e) {
+    return defaultState();
+  }
+}
+
+function save() {
+  try {
+    const persist = {
+      lives: state.lives, score: state.score, bestStreak: state.bestStreak,
+      totalXp: state.totalXp, progress: state.progress,
+      bossUnlocked: state.bossUnlocked, bossDone: state.bossDone,
+    };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(persist));
+  } catch (e) {}
+}
+
+function resetAll() {
+  if (!confirm('Wipe all progress and start over? This cannot be undone.')) return;
+  localStorage.removeItem(SAVE_KEY);
+  state = defaultState();
+  render();
+}
+
+// ============================================================
+// AUDIO (Web Audio API beeps)
+// ============================================================
+let audioCtx = null;
+function beep(freq, dur, type = 'square', vol = 0.04) {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = type;
+    o.frequency.value = freq;
+    g.gain.value = vol;
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start();
+    g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+    o.stop(audioCtx.currentTime + dur);
+  } catch (e) {}
+}
+const sfx = {
+  click: () => beep(800, 0.05),
+  correct: () => { beep(660, 0.1); setTimeout(() => beep(990, 0.15), 80); },
+  wrong: () => { beep(180, 0.2, 'sawtooth', 0.06); },
+  unlock: () => { beep(440, 0.08); setTimeout(() => beep(660, 0.08), 70); setTimeout(() => beep(880, 0.15), 140); },
+  boss: () => { beep(110, 0.4, 'sawtooth', 0.08); }
+};
+
+// ============================================================
+// RENDER
+// ============================================================
+const app = document.getElementById('app');
+
+function render() {
+  switch (state.screen) {
+    case 'title': renderTitle(); break;
+    case 'map': renderMap(); break;
+    case 'room': renderRoom(); break;
+    case 'result': renderResult(); break;
+    case 'boss-intro': renderBossIntro(); break;
+    case 'boss-result': renderBossResult(); break;
+  }
+}
+
+function renderTitle() {
+  const completed = Object.values(state.progress).filter(p => p.completed).length;
+  const total = ROOMS.length;
+  const continueDisabled = completed === 0 && state.totalXp === 0;
+  app.innerHTML = `
+    <div class="title-screen">
+      <div class="subtitle">POLITECNICO · MILANO · MANCA · Y2 SEM 1</div>
+      <div class="title">PCI</div>
+      <div class="subtitle">CHALLENGE · INSTRUMENTATION LOCKDOWN</div>
+      <div class="tagline">8 rooms. Sensors, valves, loops. The prerequisite finally weaponized.</div>
+      <div class="boot-log" id="bootLog"></div>
+      <div class="mt-lg">
+        <button class="btn" onclick="goMap()">${continueDisabled ? 'INITIATE' : 'CONTINUE'}</button>
+        ${continueDisabled ? '' : '<button class="btn danger" onclick="resetAll()">RESET</button>'}
+      </div>
+    </div>
+  `;
+  typeBoot([
+    '> pci.boot --target=foundation_recall',
+    '> loading instrumentation map ... <span class="ok">OK</span>',
+    `> rooms detected: <span class="ok">${total}</span> · cleared: <span class="ok">${completed}</span>`,
+    `> total XP: <span class="ok">${state.totalXp}</span> · best streak: <span class="warn">${state.bestStreak}</span>`,
+    '> reference: Manca, PCI lecture notes',
+    '> 4-20 mA loop <span class="ok">HEALTHY</span>. proceed.'
+  ]);
+}
+
+function typeBoot(lines) {
+  const el = document.getElementById('bootLog');
+  if (!el) return;
+  let i = 0;
+  function nextLine() {
+    if (i >= lines.length) return;
+    const d = document.createElement('div');
+    d.className = 'line';
+    d.innerHTML = lines[i];
+    el.appendChild(d);
+    i++;
+    setTimeout(nextLine, 180);
+  }
+  nextLine();
+}
+
+function renderHUD() {
+  const livesHtml = Array.from({ length: 3 }, (_, i) =>
+    `<span class="life ${i >= state.lives ? 'lost' : ''}">●</span>`
+  ).join('');
+  const streakClass = state.streak >= 8 ? 'fire' : state.streak >= 4 ? 'hot' : '';
+  return `
+    <div class="hud">
+      <div class="hud-item">
+        <span class="hud-label">LIVES</span>
+        <div class="lives">${livesHtml}</div>
+      </div>
+      <div class="hud-item streak ${streakClass}">
+        <span class="hud-label">STREAK</span>
+        <span class="hud-value">×${state.streak}</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">XP</span>
+        <span class="hud-value">${state.totalXp}</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">BEST</span>
+        <span class="hud-value">${state.bestStreak}</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderMap() {
+  let html = renderHUD();
+  html += `
+    <div class="map-header">
+      <div class="map-title">// INSTRUMENTATION MAP</div>
+      <div class="map-sub">Clear rooms in order. 4/5 correct unlocks the next room. 5/5 = 3 stars. PCI by Manca.</div>
+    </div>
+    <div class="room-grid">
+  `;
+  let prevCompleted = true;
+  for (let i = 0; i < ROOMS.length; i++) {
+    const r = ROOMS[i];
+    const p = state.progress[r.id] || { stars: 0, mastery: 0, completed: false };
+    const unlocked = prevCompleted || p.completed;
+    const cls = p.completed ? 'completed' : (unlocked ? 'unlocked' : 'locked');
+    const stars = p.stars > 0 ? '★'.repeat(p.stars) + '☆'.repeat(3 - p.stars) : '';
+    const mastery = p.completed ? `${p.mastery}%` : '';
+    html += `
+      <div class="room-card ${cls}" ${unlocked ? `onclick="startRoom('${r.id}')"` : ''}>
+        <div>
+          <div class="room-id">ROOM ${i + 1} · ${r.id}</div>
+          <div class="room-name">${r.name}</div>
+          <div class="room-date">${r.date}/2026</div>
+        </div>
+        <div class="room-footer">
+          ${unlocked ? `<span class="stars">${stars}</span><span class="mastery">${mastery}</span>` : '<span class="lock-icon">🔒 LOCKED</span>'}
+        </div>
+      </div>
+    `;
+    prevCompleted = p.completed;
+  }
+
+  // Boss
+  const allDone = ROOMS.every(r => state.progress[r.id]?.completed);
+  const bossCls = state.bossDone ? 'completed boss' : (allDone ? 'unlocked boss' : 'locked boss');
+  html += `
+    <div class="room-card ${bossCls}" ${allDone ? 'onclick="startBoss()"' : ''}>
+      <div>
+        <div class="room-id" style="color: var(--danger);">★ FINAL ROUND</div>
+        <div class="room-name">EXAM SIMULATION — Mixed Topics · No Hints · Timer</div>
+        <div class="room-date">All lectures · Stephanopoulos boss fight</div>
+      </div>
+      <div class="room-footer">
+        ${allDone ? (state.bossDone ? `<span class="stars">★★★</span><span style="color:var(--danger)">CLEARED</span>` : '<span style="color: var(--danger);">▶ ENTER</span>') : '<span class="lock-icon">🔒 CLEAR ALL ROOMS</span>'}
+      </div>
+    </div>
+  `;
+
+  html += '</div>';
+  app.innerHTML = html;
+}
+
+function renderRoom() {
+  const room = ROOMS.find(r => r.id === state.currentRoomId);
+  if (!room) { state.screen = 'map'; render(); return; }
+  const q = room.questions[state.currentQIdx];
+  let html = renderHUD();
+  html += `
+    <div class="question-header">
+      <div class="breadcrumb">// <span class="accent">${room.id}</span> · ${room.name}</div>
+      <div class="q-progress">Q ${state.currentQIdx + 1} / ${room.questions.length}</div>
+    </div>
+    <div class="question-card">
+      <div class="q-type-badge">${q.type.toUpperCase()}</div>
+      <div class="q-prompt">${q.prompt}</div>
+      ${renderQuestionBody(q)}
+      ${state.answered ? renderFeedback(q) : ''}
+      <div class="q-actions">
+        ${state.answered
+          ? `<button class="btn" onclick="nextQuestion()">${state.currentQIdx + 1 >= room.questions.length ? 'FINISH ROOM' : 'NEXT →'}</button>`
+          : `<button class="btn" id="submitBtn" onclick="submitAnswer()" ${state.currentAnswer === null ? 'disabled' : ''}>SUBMIT</button>`}
+        <button class="btn secondary" onclick="abandonRoom()">EXIT</button>
+      </div>
+    </div>
+  `;
+  app.innerHTML = html;
+}
+
+function renderQuestionBody(q) {
+  const locked = state.answered ? 'style="pointer-events: none;"' : '';
+  if (q.type === 'mcq' || q.type === 'error') {
+    const options = q.type === 'mcq' ? q.options : q.statements;
+    return `<div class="options" ${locked}>` + options.map((opt, i) => {
+      let cls = '';
+      if (state.currentAnswer === i) cls = 'selected';
+      if (state.answered) {
+        const correctIdx = q.type === 'mcq' ? q.correct : q.wrongIndex;
+        if (i === correctIdx) cls = 'correct';
+        else if (i === state.currentAnswer) cls = 'wrong';
+      }
+      const letter = String.fromCharCode(65 + i);
+      return `<div class="option ${cls}" onclick="pickOption(${i})"><span class="option-letter">${letter}</span><span>${opt}</span></div>`;
+    }).join('') + '</div>';
+  }
+  if (q.type === 'numeric') {
+    return `
+      <div class="numeric-wrap">
+        <input type="number" class="numeric-input" id="numInput" step="any"
+               value="${state.currentAnswer ?? ''}"
+               oninput="state.currentAnswer = this.value === '' ? null : parseFloat(this.value); document.getElementById('submitBtn').disabled = state.currentAnswer === null;"
+               onkeydown="if(event.key==='Enter' && !state.answered && state.currentAnswer !== null) submitAnswer();"
+               ${state.answered ? 'disabled' : 'autofocus'}>
+        <span class="numeric-units">${q.units || ''}</span>
+      </div>
+    `;
+  }
+  if (q.type === 'match') {
+    // currentAnswer holds: { pairs: { leftIdx: rightIdx }, picking: leftIdx | null }
+    if (!state.currentAnswer || typeof state.currentAnswer !== 'object') {
+      state.currentAnswer = { pairs: {}, picking: null };
+    }
+    const ans = state.currentAnswer;
+    const rightShuffled = q._shuffledRight || (q._shuffledRight = shuffle(q.pairs.map((p, i) => ({ text: p.right, originalIdx: i }))));
+    let html = '<div class="match-grid">';
+    // Left column
+    html += '<div><div class="match-col-label">TERMS</div>';
+    q.pairs.forEach((p, i) => {
+      const paired = ans.pairs[i] !== undefined;
+      const selected = ans.picking === i;
+      const pairTag = paired ? `<span class="match-pair-tag">[${getPairLetter(ans.pairs[i], rightShuffled)}]</span>` : '';
+      let revealCls = '';
+      if (state.answered) {
+        revealCls = ans.pairs[i] === i ? 'correct' : 'wrong';
+        revealCls = revealCls === 'correct' ? 'paired' : 'wrong';
+      }
+      html += `<div class="match-item ${paired ? 'paired' : ''} ${selected ? 'selected' : ''} ${state.answered ? revealCls : ''}"
+                onclick="pickMatchLeft(${i})">${pairTag}${p.left}</div>`;
+    });
+    html += '</div>';
+    // Right column (shuffled)
+    html += '<div><div class="match-col-label">DEFINITIONS</div>';
+    rightShuffled.forEach((r, displayIdx) => {
+      const usedBy = Object.entries(ans.pairs).find(([l, rOrig]) => rOrig === r.originalIdx);
+      const paired = !!usedBy;
+      const letter = String.fromCharCode(65 + displayIdx);
+      html += `<div class="match-item ${paired ? 'paired' : ''}" onclick="pickMatchRight(${r.originalIdx})">
+                 <span class="match-pair-tag">[${letter}]</span>${r.text}
+               </div>`;
+    });
+    html += '</div></div>';
+    return html;
+  }
+  return '<div>Unsupported question type.</div>';
+}
+
+function getPairLetter(originalRightIdx, shuffledRight) {
+  const idx = shuffledRight.findIndex(r => r.originalIdx === originalRightIdx);
+  return String.fromCharCode(65 + idx);
+}
+
+function renderFeedback(q) {
+  const correct = state.lastCorrect;
+  return `
+    <div class="feedback ${correct ? 'correct' : 'wrong'}">
+      <div class="feedback-title">${correct ? '✓ CORRECT' : '✗ WRONG'}</div>
+      <div class="feedback-explain">${q.explain}</div>
+    </div>
+  `;
+}
+
+function renderResult() {
+  const room = ROOMS.find(r => r.id === state.currentRoomId);
+  const correct = state.roomResults.filter(r => r).length;
+  const total = state.roomResults.length;
+  const mastery = Math.round(100 * correct / total);
+  const stars = correct === total ? 3 : (correct >= 4 ? 2 : (correct >= 3 ? 1 : 0));
+  const pass = correct >= 4;
+
+  // Persist
+  if (pass) {
+    const existing = state.progress[room.id];
+    if (!existing || stars > existing.stars) {
+      state.progress[room.id] = { stars, mastery, completed: true };
+    } else {
+      state.progress[room.id].completed = true;
+    }
+    sfx.unlock();
+  } else {
+    sfx.wrong();
+  }
+  save();
+
+  app.innerHTML = `
+    ${renderHUD()}
+    <div class="result-screen">
+      <div class="result-headline ${pass ? '' : 'fail'}">${pass ? 'ROOM CLEARED' : 'ROOM FAILED'}</div>
+      <div class="result-room">${room.id} · ${room.name}</div>
+      <div class="result-stars">${'★'.repeat(stars)}${'☆'.repeat(3 - stars)}</div>
+      <div class="result-stats">
+        <div class="result-stat">
+          <div class="result-stat-value">${correct}/${total}</div>
+          <div class="result-stat-label">CORRECT</div>
+        </div>
+        <div class="result-stat">
+          <div class="result-stat-value">${mastery}%</div>
+          <div class="result-stat-label">MASTERY</div>
+        </div>
+        <div class="result-stat">
+          <div class="result-stat-value">${state.streak}</div>
+          <div class="result-stat-label">CURRENT STREAK</div>
+        </div>
+      </div>
+      <div class="mt-lg">
+        <button class="btn" onclick="goMap()">RETURN TO MAP</button>
+        ${!pass ? `<button class="btn secondary" onclick="startRoom('${room.id}')">RETRY ROOM</button>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+function renderBossIntro() {
+  sfx.boss();
+  app.innerHTML = `
+    ${renderHUD()}
+    <div class="result-screen boss-mode">
+      <div class="result-headline fail">★ FINAL ROUND ★</div>
+      <div class="result-room">EXAM SIMULATION · 15 questions · 12 minutes · No retry within run</div>
+      <div style="max-width: 600px; margin: 30px auto; line-height: 1.7; font-family: ui-sans-serif, system-ui, sans-serif; color: var(--muted);">
+        Mixed topics. Time pressure. 3 lives. <span style="color: var(--accent);">Get 12/15 to clear.</span>
+        Each correct answer worth 100 XP × streak multiplier. Boss XP awarded only on clear.
+      </div>
+      <div class="mt-lg">
+        <button class="btn danger" onclick="actuallyStartBoss()">▶ BEGIN</button>
+        <button class="btn secondary" onclick="goMap()">NOT YET</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderBossResult() {
+  const correct = state.roomResults.filter(r => r).length;
+  const total = state.roomResults.length;
+  const pass = correct >= 12;
+  if (pass) {
+    state.bossDone = true;
+    state.totalXp += 1000;
+    save();
+    sfx.unlock();
+  } else {
+    sfx.wrong();
+  }
+  app.innerHTML = `
+    ${renderHUD()}
+    <div class="result-screen boss-mode">
+      <div class="result-headline ${pass ? '' : 'fail'}">${pass ? '★ BOSS DEFEATED ★' : 'BOSS WON'}</div>
+      <div class="result-room">${correct}/${total} correct · ${Math.round(100*correct/total)}% mastery</div>
+      ${pass ? '<div style="color: var(--accent); margin: 30px 0; font-size: 18px;">+1000 BONUS XP · You are exam-ready.</div>' : '<div style="color: var(--muted); margin: 30px 0;">Return to the map, polish weak rooms, try again.</div>'}
+      <div class="mt-lg">
+        <button class="btn" onclick="goMap()">RETURN TO MAP</button>
+        ${!pass ? `<button class="btn danger" onclick="actuallyStartBoss()">RETRY BOSS</button>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================
+// EVENT HANDLERS
+// ============================================================
+function goMap() {
+  sfx.click();
+  state.screen = 'map';
+  state.currentRoomId = null;
+  state.currentQIdx = 0;
+  state.currentAnswer = null;
+  state.answered = false;
+  state.roomResults = [];
+  state.lives = 3;  // refill lives between rooms
+  render();
+}
+
+function startRoom(id) {
+  sfx.click();
+  state.screen = 'room';
+  state.currentRoomId = id;
+  state.currentQIdx = 0;
+  state.currentAnswer = null;
+  state.answered = false;
+  state.roomResults = [];
+  state.lives = 3;
+  state.streak = 0;
+  // shuffle each room's MCQ option order? No — keep stable for muscle memory.
+  // Reset any shuffled match arrays so they re-shuffle on retry:
+  ROOMS.find(r => r.id === id).questions.forEach(q => { if (q.type === 'match') delete q._shuffledRight; });
+  render();
+}
+
+function pickOption(i) {
+  if (state.answered) return;
+  sfx.click();
+  state.currentAnswer = i;
+  render();
+}
+
+function pickMatchLeft(leftIdx) {
+  if (state.answered) return;
+  const ans = state.currentAnswer;
+  if (ans.pairs[leftIdx] !== undefined) {
+    // already paired — unpair
+    delete ans.pairs[leftIdx];
+    ans.picking = null;
+  } else {
+    ans.picking = leftIdx;
+  }
+  sfx.click();
+  render();
+  maybeFinalizeMatch();
+}
+
+function pickMatchRight(rightIdx) {
+  if (state.answered) return;
+  const ans = state.currentAnswer;
+  // if this right is already paired, do nothing
+  if (Object.values(ans.pairs).includes(rightIdx)) return;
+  if (ans.picking === null) return;
+  ans.pairs[ans.picking] = rightIdx;
+  ans.picking = null;
+  sfx.click();
+  render();
+  maybeFinalizeMatch();
+}
+
+function maybeFinalizeMatch() {
+  const q = ROOMS.find(r => r.id === state.currentRoomId)?.questions[state.currentQIdx]
+            || BOSS_POOL?.[state.currentQIdx];
+  if (!q || q.type !== 'match') return;
+  const ans = state.currentAnswer;
+  const pairCount = Object.keys(ans.pairs).length;
+  document.getElementById('submitBtn').disabled = pairCount !== q.pairs.length;
+}
+
+function submitAnswer() {
+  const room = state.bossActive
+    ? { questions: BOSS_POOL, id: 'BOSS' }
+    : ROOMS.find(r => r.id === state.currentRoomId);
+  const q = room.questions[state.currentQIdx];
+  let correct = false;
+  if (q.type === 'mcq') correct = state.currentAnswer === q.correct;
+  else if (q.type === 'error') correct = state.currentAnswer === q.wrongIndex;
+  else if (q.type === 'numeric') {
+    const ans = parseFloat(state.currentAnswer);
+    correct = !isNaN(ans) && Math.abs(ans - q.answer) <= (q.tolerance ?? 0.01);
+  } else if (q.type === 'match') {
+    correct = q.pairs.every((_, i) => state.currentAnswer.pairs[i] === i);
+  }
+
+  state.answered = true;
+  state.lastCorrect = correct;
+  state.roomResults.push(correct);
+
+  if (correct) {
+    state.streak++;
+    if (state.streak > state.bestStreak) state.bestStreak = state.streak;
+    const mult = Math.min(5, 1 + Math.floor(state.streak / 3));
+    const gain = (state.bossActive ? 100 : 50) * mult;
+    state.totalXp += gain;
+    sfx.correct();
+  } else {
+    state.streak = 0;
+    state.lives--;
+    sfx.wrong();
+  }
+  save();
+  render();
+
+  // If out of lives mid-room, end the room
+  if (state.lives <= 0 && !state.bossActive) {
+    setTimeout(() => endRoom(), 1400);
+  } else if (state.lives <= 0 && state.bossActive) {
+    setTimeout(() => endBoss(), 1400);
+  }
+}
+
+function nextQuestion() {
+  const room = state.bossActive ? { questions: BOSS_POOL } : ROOMS.find(r => r.id === state.currentRoomId);
+  state.currentQIdx++;
+  state.currentAnswer = null;
+  state.answered = false;
+  if (state.currentQIdx >= room.questions.length) {
+    if (state.bossActive) endBoss();
+    else endRoom();
+    return;
+  }
+  // Reset match answer if next is match
+  const nextQ = room.questions[state.currentQIdx];
+  if (nextQ.type === 'match') state.currentAnswer = { pairs: {}, picking: null };
+  render();
+}
+
+function endRoom() {
+  state.screen = 'result';
+  render();
+}
+
+function abandonRoom() {
+  if (!confirm('Leave this room? Progress within the room is lost.')) return;
+  goMap();
+}
+
+// ============================================================
+// BOSS
+// ============================================================
+let BOSS_POOL = [];
+function startBoss() {
+  sfx.click();
+  state.screen = 'boss-intro';
+  render();
+}
+
+function actuallyStartBoss() {
+  sfx.boss();
+  // Build pool: 10 random from rooms + 5 exclusive
+  const allRoomQs = ROOMS.flatMap(r => r.questions);
+  BOSS_POOL = [...shuffle(allRoomQs).slice(0, 10), ...BOSS_EXCLUSIVE].sort(() => Math.random() - 0.5);
+  // Clear any prior match shuffles
+  BOSS_POOL.forEach(q => { if (q.type === 'match') delete q._shuffledRight; });
+  state.bossActive = true;
+  state.screen = 'room';
+  state.currentRoomId = '★ BOSS ROUND ★';
+  state.currentQIdx = 0;
+  state.currentAnswer = BOSS_POOL[0].type === 'match' ? { pairs: {}, picking: null } : null;
+  state.answered = false;
+  state.roomResults = [];
+  state.lives = 3;
+  state.streak = 0;
+  // Patch the room lookup: render uses currentRoomId, so we wrap
+  render();
+}
+
+function endBoss() {
+  state.bossActive = false;
+  state.screen = 'boss-result';
+  render();
+}
+
+// Patch render() for boss: when bossActive, treat currentRoom as BOSS_POOL
+const originalRenderRoom = renderRoom;
+renderRoom = function() {
+  if (!state.bossActive) return originalRenderRoom();
+  const q = BOSS_POOL[state.currentQIdx];
+  if (!q) { state.screen = 'boss-result'; render(); return; }
+  let html = renderHUD();
+  html += `
+    <div class="question-header">
+      <div class="breadcrumb">// <span class="accent" style="color: var(--danger);">★ BOSS ROUND</span> · EXAM SIMULATION</div>
+      <div class="q-progress">Q ${state.currentQIdx + 1} / ${BOSS_POOL.length}</div>
+    </div>
+    <div class="question-card boss-mode">
+      <div class="q-type-badge" style="border-color: var(--danger); color: var(--danger);">${q.type.toUpperCase()}</div>
+      <div class="q-prompt">${q.prompt}</div>
+      ${renderQuestionBody(q)}
+      ${state.answered ? renderFeedback(q) : ''}
+      <div class="q-actions">
+        ${state.answered
+          ? `<button class="btn danger" onclick="nextQuestion()">${state.currentQIdx + 1 >= BOSS_POOL.length ? 'FINALIZE' : 'NEXT →'}</button>`
+          : `<button class="btn danger" id="submitBtn" onclick="submitAnswer()" ${state.currentAnswer === null || (typeof state.currentAnswer === 'object' && Object.keys(state.currentAnswer.pairs || {}).length !== (q.pairs?.length || 0)) ? 'disabled' : ''}>SUBMIT</button>`}
+        <button class="btn secondary" onclick="abandonBoss()">ABANDON</button>
+      </div>
+    </div>
+  `;
+  app.innerHTML = html;
+};
+
+function abandonBoss() {
+  if (!confirm('Abandon the boss round? You will need to clear all rooms again to retry.')) return;
+  state.bossActive = false;
+  goMap();
+}
+
+// ============================================================
+// UTIL
+// ============================================================
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// ============================================================
+// BOOT
+// ============================================================
+render();
+</script>
+</body>
+</html>
