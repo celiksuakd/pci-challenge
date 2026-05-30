@@ -386,208 +386,226 @@
 
 const ROOMS = [
   {
-    id: 'L1', date: 'WK1', name: 'Process Variables & Objectives', questions: [
-      { type: 'mcq', prompt: 'The standard safety hierarchy of process-control objectives (most → least critical) is:',
-        options: ['Economics → Safety → Quality → Production', 'Safety → Environment → Specifications/Quality → Economics', 'Production → Safety → Quality → Cost', 'Throughput → Safety → Environment → Cost'],
-        correct: 1, explain: 'Manca\'s mantra: SAFETY first, then ENVIRONMENT, then PRODUCT QUALITY/SPECS, then ECONOMICS. Optimization happens within the safety envelope, never outside it.' },
-      { type: 'mcq', prompt: 'The MANIPULATED variable (MV) is:',
-        options: ['The output being controlled', 'The variable the controller directly adjusts (typically a valve position)', 'An uncontrolled disturbance', 'The setpoint'],
-        correct: 1, explain: 'MV = the lever the controller pulls. Most commonly a control-valve stem position, sometimes a pump speed or heater duty.' },
-      { type: 'match', prompt: 'Match each ISA P&ID tag to its meaning.',
+    id: 'L1', date: 'WK1', name: 'Why Control & Loop Design', questions: [
+      { type: 'mcq', prompt: 'Visconti opens with FIVE reasons we must control an industrial process. They are:',
+        options: ['Cost, Speed, Volume, Throughput, Profit', 'Safety, Product specs, Environmental regulations, Operative reasons, Economics (OPEX)', 'Quality, Quantity, Cost', 'Just Safety'],
+        correct: 1, explain: 'Slide L1 p.8 (Visconti). Note the ORDER: Safety first. Threshold limits on T, P, concentrations. Then product specs (often purity), then environmental, then operative envelope, then OPEX minimization.' },
+      { type: 'mcq', prompt: 'The THREE actions a control system must enable (Visconti):',
+        options: ['Start, monitor, stop', '(i) Suppress external disturbances, (ii) Ensure process stability, (iii) Optimize process performance', 'Heating, cooling, mixing', 'Buy, sell, store'],
+        correct: 1, explain: 'Slide L1 p.8 (Visconti). Disturbance rejection + stabilization + optimization. Setpoint tracking is implied (a setpoint move is just a "designed disturbance").' },
+      { type: 'mcq', prompt: 'According to Visconti, INPUT variables split into:',
+        options: ['Hot and cold streams', 'MANIPULATED (varied through control loop) and DISTURBANCE (cannot be varied — sometimes measured, sometimes not)', 'Liquid and gas', 'High and low pressure'],
+        correct: 1, explain: 'Slide L1 p.18 (Visconti). OUTPUT variables split into MEASURED and NON-MEASURED. The choice of measured + manipulated variable is the first design decision.' },
+      { type: 'mcq', prompt: 'Visconti\'s FIVE-STEP control loop design procedure (in order):',
+        options: ['Buy hardware → install → tune → operate → audit', '(1) Define control target; (2) Choose measured variable; (3) Choose manipulated variable; (4) Define configuration (FB / FF / inferential); (5) Define control law (P, PI, PID…)', 'Choose PID → tune → done', 'Random order'],
+        correct: 1, explain: 'Slide L1 p.19–24 (Visconti). Skip step 1 and you don\'t know what success looks like. Reverse 2 and 3 and you may pick a measurement that has no causal link to your manipulator.' },
+      { type: 'error', prompt: 'Three statements are TRUE per Visconti, one is FALSE.',
+        statements: [
+          'In chemical industry, most processing systems are MIMO (multiple inputs, multiple outputs)',
+          'SISO is simpler to design and understand; understanding it is the foundation for MIMO',
+          'Inferential control is used when the targeted variable cannot be directly measured — measure a proxy and correlate',
+          'For a TRULY STABLE (self-regulating) process, you still NEED a control loop for stability itself'
+        ], wrongIndex: 3, explain: 'Slide L1 p.14 (Visconti): "For a truly stable, self-regulating process, we generally DO NOT need a control loop just for stability." You may still want one for SP tracking, disturbance rejection, or optimization — but not for stability.' }
+    ]
+  },
+  {
+    id: 'L2', date: 'WK2', name: 'Stability & Operating Points', questions: [
+      { type: 'mcq', prompt: 'Visconti\'s jacketed exothermic CSTR example has three operating points P1, P2, P3 on the heat-removal vs heat-generation diagram. Which is the UNSTABLE one?',
+        options: ['All three', 'P1 and P3 are STABLE (autoregulating); P2 is UNSTABLE — needs control', 'P1 only', 'None — all need control'],
+        correct: 1, explain: 'Slide L1 p.15 (Visconti). At P2 the heat-generation curve cuts the heat-removal line from below — a small T perturbation grows. Classic Van Heerden analysis. The middle intersection of an exothermic-CSTR is always the unstable one.' },
+      { type: 'mcq', prompt: 'According to Visconti, an AUTOREGULATING process:',
+        options: ['Cannot be controlled', 'Naturally dampens deviations and settles back to steady state without external action', 'Always oscillates', 'Has no dynamics'],
+        correct: 1, explain: 'Slide L1 p.14 (Visconti). Most industrial processes are autoregulating; you control them for set-point tracking, disturbance rejection, or optimization, not for fundamental stability.' },
+      { type: 'mcq', prompt: 'In an UNSTABLE (non-autoregulating) process:',
+        options: ['Disturbances simply die out', 'The variable moves away from setpoint and either grows or runs away — control is MANDATORY', 'Speed is too high', 'Output equals input'],
+        correct: 1, explain: 'Slide L1 p.14. Examples: an integrating (pure capacitive) tank with no level outflow correction; a thermally runaway-prone reactor at the wrong operating point. Without control, the system diverges.' },
+      { type: 'mcq', prompt: 'Visconti also notes a BATCH endothermic A→B→C reactor (B is target). Why is OPTIMIZATION the control objective here, not just stability?',
+        options: ['Stability is not relevant in batch', 'There is an OPTIMAL steam-flow trajectory: high early to push A→B fast, then cool down to avoid B→C → profit ∝ ∫(earnings − steam cost − C-disposal − A-cost) dt', 'B never forms', 'Endothermic reactions are always stable'],
+        correct: 1, explain: 'Slide L1 p.16 (Visconti). The profile-optimization problem is the heart of batch control — operate the trajectory that maximizes ∫(value-stream) over the batch time t_R.' },
+      { type: 'mcq', prompt: 'Visconti\'s textbook (and reference) for the course is:',
+        options: ['Coulson & Richardson', 'Stephanopoulos — "Chemical Process Control: An Introduction to Theory and Practice"; plus Toghraei "P&ID Development"', 'Levenspiel', 'Perry\'s Handbook'],
+        correct: 1, explain: 'Slide L1 p.5 (Visconti references). Stephanopoulos is the same textbook used in Pelucchi\'s DCoCP — your year-2 control sequence shares one canonical text.' }
+    ]
+  },
+  {
+    id: 'L3', date: 'WK3', name: '1st-Order & Pure-Capacitive Dynamics', questions: [
+      { type: 'mcq', prompt: 'According to Visconti, a 1st-order process is characterized by:',
+        options: ['No memory at all', 'CAPACITY to store material or energy AND RESISTANCE to the flow of mass/energy reaching that capacity', 'Pure oscillation', 'Pure delay'],
+        correct: 1, explain: 'Visconti lab notes (1st-order dynamics page). Tank with gravity outflow = level capacity + outflow resistance. Heat exchanger = thermal capacity + heat transfer resistance. Time constant τ = capacity × resistance.' },
+      { type: 'mcq', prompt: 'A PURE-CAPACITIVE (integrating) process has:',
+        options: ['Self-regulating behavior', 'NO MEMORY of an equilibrium — accumulates whatever you give it; example: tank with CONSTANT-flow (positive-displacement) pump on outlet → level integrates inflow indefinitely', 'A fast time constant', 'Instant equilibration'],
+        correct: 1, explain: 'Visconti lab notes. Removing the outflow resistance kills self-regulation. Pure capacitive systems are open-loop UNSTABLE — must be controlled to bound the state.' },
+      { type: 'mcq', prompt: 'Visconti states the MAJORITY of processes relevant for chemical engineers are:',
+        options: ['Higher-order (4+) systems', 'First-order or pure-capacitive', 'Always 2nd order', 'Discrete'],
+        correct: 1, explain: 'Visconti notes. This is good news: simple dynamics → tuning is tractable. The complexity arises mostly from interactions (cascade, MIMO, recycle).' },
+      { type: 'mcq', prompt: 'Two NON-INTERACTING 1st-order tanks in series form a 2nd-order system. The outlet level h_2(t) responds with:',
+        options: ['Same as a single tank', 'An INITIAL DELAY (S-shaped curve) because Tank 1 must fill first before significantly changing Tank 2 inflow; result is OVERDAMPED (sluggish, no overshoot)', 'Immediate overshoot', 'Oscillation'],
+        correct: 1, explain: 'Visconti lab notes on multicapacitive 2nd-order. The "S-curve" signature is what tells you you\'re dealing with cascade of capacities, not a true 2nd-order resonance.' },
+      { type: 'numeric', prompt: 'A 1st-order system has τ = 4 min. After a step input, what % of the final value is reached at t = τ?',
+        answer: 63.2, tolerance: 1, units: '%',
+        explain: 'y(τ) = K·M·(1 − e⁻¹) = 0.632·K·M. The 63.2% rule is the textbook way to read τ off a step response. 95% at 3τ; 99% at 5τ.' }
+    ]
+  },
+  {
+    id: 'L4', date: 'WK4', name: '2nd-Order Dynamics & Damping', questions: [
+      { type: 'mcq', prompt: 'In Visconti\'s analogy, controlling a 1st-order "door with hydraulic closer" with a high-gain controller is like:',
+        options: ['Adding a second door', 'Hiring "a very aggressive person" — the door slams past the latch and BOUNCES (oscillation = hallmark of 2nd-order behavior introduced by the controller)', 'Removing the hinge', 'Removing the closer'],
+        correct: 1, explain: 'Visconti lab notes. Fast response + low damping → overshoot and ringing. The control system can turn a benign 1st-order process into an oscillatory 2nd-order closed loop.' },
+      { type: 'mcq', prompt: 'An INHERENTLY 2nd-order system shows OVERDAMPED behavior when:',
+        options: ['ζ = 0', 'Damping ratio ζ > 1 — sluggish, monotonic approach, no overshoot, no oscillation', 'ζ = 0.5', 'The system has no resistance'],
+        correct: 1, explain: 'Visconti notes. ζ > 1 = two real distinct poles. ζ = 1 = critical (fastest non-oscillating). ζ < 1 = underdamped (oscillating, overshoot). ζ ≤ 0 = unstable.' },
+      { type: 'mcq', prompt: 'For UNDERDAMPED responses, Visconti notes:',
+        options: ['They reach SS slower than overdamped', 'They reach the ultimate value QUICKLY but then OSCILLATE around it with progressively decreasing amplitude', 'No oscillation', 'They never settle'],
+        correct: 1, explain: 'Visconti lab notes: "underdamped responses are faster than overdamped at the beginning, reaches the ultimate value quickly, but then it does not stay there." Trade-off: speed vs smoothness.' },
+      { type: 'mcq', prompt: 'Why does Visconti say controlling LIQUID LEVEL with strong derivative action is generally AVOIDED?',
+        options: ['D is illegal', 'Free surface oscillation (waves, agitation) creates a noisy level signal → D-term spikes → valve damage and erratic control', 'D action makes it slower', 'No reason'],
+        correct: 1, explain: 'Visconti controller selection notes. The classic rule: avoid D on noisy signals (level, flow). Apply D where the process is slow and smooth (temperature on lagged processes).' },
+      { type: 'numeric', prompt: 'For a 2nd-order underdamped step with ζ = 0.4, peak overshoot M_p = exp(−πζ/√(1−ζ²)) ≈ ? (%)',
+        answer: 25, tolerance: 3, units: '%',
+        explain: 'M_p = exp(−π·0.4/√0.84) = exp(−1.37) ≈ 0.254 → 25%. Design target for most chemical loops: ζ ≈ 0.7 → ~5% overshoot, fast enough to be useful.' }
+    ]
+  },
+  {
+    id: 'L5', date: 'WK5', name: 'P Controller — Fast but Inaccurate', questions: [
+      { type: 'mcq', prompt: 'P-controller output (Visconti formula):',
+        options: ['c(t) = K_c · ∫ε dt + c_s', 'c(t) = K_c · ε(t) + c_s  (where c_s = bias and ε = setpoint − measurement)', 'c(t) = K_c · dε/dt', 'c(t) = K_c'],
+        correct: 1, explain: 'Visconti notes. Pure proportional. Bias c_s is what holds the actuator at a useful value when ε = 0. Without bias, the system would have zero MV at zero error — generally not desired.' },
+      { type: 'mcq', prompt: 'P-control ALWAYS leaves OFFSET. Why?',
+        options: ['Because the controller is slow', 'At SS, if ε = 0 then c = c_s — generally NOT the value needed to reject the load. So ε must persist (small but nonzero). Offset decreases as K_c increases but never disappears.', 'Bug in the controller', 'Sensor problem'],
+        correct: 1, explain: 'Visconti notes. The PHYSICAL reason: a P-controller can only generate a non-bias MV by sustaining a non-zero error. Eliminating offset requires integral action.' },
+      { type: 'mcq', prompt: 'As K_c increases in a P-controller (per Visconti):',
+        options: ['Response slows and offset grows', 'Response rate GROWS, offset DECREASES, but high K_c can make a 2nd-order system OSCILLATORY (underdamped) and amplifies measurement noise', 'No effect', 'Controller becomes less aggressive'],
+        correct: 1, explain: 'Visconti notes. The three-way trade-off: speed vs accuracy vs stability. At very high K_c, noise sensitivity and actuator-saturation problems appear ("valve at 120% open").' },
+      { type: 'mcq', prompt: 'A P-controller does NOT change the order of the (uncontrolled) process. True or false?',
+        options: ['False — it always adds order', 'TRUE — P leaves the system order unchanged; integral action is what adds +1 order', 'Always increases order by 2', 'Depends on K_c'],
+        correct: 1, explain: 'Visconti summary slide. P scales but does not integrate or differentiate the loop transfer function in a way that adds dynamics. PI adds 1 order (integrator). PID can add up to 2 (integrator + filtered derivative).' },
+      { type: 'error', prompt: 'One statement is FALSE per Visconti.',
+        statements: [
+          'P-control is FAST: K_c controls the speed',
+          'P-control is INACCURATE: an offset exists, which decreases with increasing K_c',
+          'For high K_c, second-order systems may become unstable (oscillating)',
+          'Increasing K_c automatically eliminates the offset to zero'
+        ], wrongIndex: 3, explain: 'Visconti notes. K_c → ∞ would theoretically eliminate offset but physically you hit actuator saturation, noise amplification, and instability long before. P alone CANNOT remove offset — integral action is required.' }
+    ]
+  },
+  {
+    id: 'L6', date: 'WK6', name: 'I & PI Controllers', questions: [
+      { type: 'mcq', prompt: 'Integral controller formula (Visconti):',
+        options: ['c(t) = K_c · ε', 'c(t) = (K_c / τ_I) · ∫ε(t) dt + c_s', 'c(t) = K_c · dε/dt', 'c(t) = K_c · t'],
+        correct: 1, explain: 'Visconti notes. τ_I = integral time. The "core idea: look at accumulated error over time. As long as error exists, integral control grows, forcing the controller to act until the error is completely gone."' },
+      { type: 'mcq', prompt: 'PURE I control changes the order of the system by:',
+        options: ['Zero', '+1 (adds an integrator pole at s = 0)', '+2', '−1'],
+        correct: 1, explain: 'Visconti notes. The order +1 is also why PI on a 1st-order plant can become oscillatory (closed-loop is now 2nd order with non-trivial dynamics). Tuning trade-off appears.' },
+      { type: 'mcq', prompt: 'For an INTEGRAL controller, AGGRESSIVENESS is controlled by τ_I such that:',
+        options: ['Higher τ_I → more aggressive', 'LOWER τ_I → MORE aggressive (integral term grows faster); higher τ_I → milder', 'τ_I has no effect', 'Aggressiveness depends only on K_c'],
+        correct: 1, explain: 'Visconti notes. Don\'t confuse τ_I with K_I = K_c/τ_I. The classic exam trap: "larger τ_I means MORE aggressive integral" is FALSE.' },
+      { type: 'mcq', prompt: 'PI controller (Visconti formula):',
+        options: ['c(t) = K_c · ε(t) + (K_c/τ_I) · ∫ε(t)dt + c_s  — fast response (P) + no offset (I) + +1 order from I', 'c(t) = K_c · dε/dt', 'P only', 'I only'],
+        correct: 0, explain: 'Visconti calls PI the "best of both worlds." It is the workhorse of industrial control: P for speed, I to drive offset to zero. ~80% of installed PID-loops actually run PI (D off).' },
+      { type: 'numeric', prompt: 'PI controller: K_c = 2, τ_I = 10 min, step error ε = 1 (with c_s = 0). Compute c(t = 10 min).',
+        answer: 4, tolerance: 0.05, units: '',
+        explain: 'c = K_c·[ε + (1/τ_I)·∫ε dt] = 2·[1 + (1/10)·10] = 2·2 = 4. After one τ_I of steady error, the integral contribution EQUALS the proportional contribution — a useful sanity check.' }
+    ]
+  },
+  {
+    id: 'L7', date: 'WK7', name: 'D, PD, PID & Controller Selection', questions: [
+      { type: 'mcq', prompt: 'DERIVATIVE action (Visconti):',
+        options: ['Eliminates offset', 'Term ∝ K_c · τ_d · dε/dt — anticipates future error trend and pushes back early', 'Always destabilizes', 'Is the same as integral action'],
+        correct: 1, explain: 'Visconti notes. D acts on the SLOPE of error — looks at where the error is heading. Limitation: "doesn\'t work when error is constant" → must be combined with P or PI.' },
+      { type: 'mcq', prompt: 'Why is PD CONTROL never used industrially?',
+        options: ['Too expensive', 'PD still has OFFSET (the P action), and the D action doesn\'t fix it — when error is constant, derivative = 0, so it adds nothing at steady state', 'Too fast', 'Always unstable'],
+        correct: 1, explain: 'Visconti notes. "PD controllers are not used!" — because they keep the P-offset problem without gaining anything at SS. Need integral action to kill offset.' },
+      { type: 'mcq', prompt: 'PID controller (Visconti formula):',
+        options: ['c(t) = K_c · ε + (K_c/τ_I)∫ε dt + K_c · τ_d · (dε/dt) + c_s', 'P + I', 'Just I', 'Just D'],
+        correct: 0, explain: 'Visconti notes. Fast (P) + no offset (I) + robust against overshoot (D adds damping). D is "more effective on SLOW processes" (e.g., temperature) and avoided on noisy/fast ones (level, flow).' },
+      { type: 'match', prompt: 'Match each loop type to Visconti\'s recommended controller.',
         pairs: [
-          { left: 'TIC', right: 'Temperature Indicator Controller' },
-          { left: 'FT', right: 'Flow Transmitter' },
-          { left: 'LIC', right: 'Level Indicator Controller' },
-          { left: 'PSV', right: 'Pressure Safety Valve' }
-        ], explain: 'ISA-5.1 letters: first letter = measured variable (T,F,L,P), then function (I=indicator, C=controller, T=transmitter, SV=safety valve). Memorize the alphabet.' },
-      { type: 'mcq', prompt: 'Which is NOT a typical control objective in a chemical plant?',
-        options: ['Safety of personnel and equipment', 'Maintaining product specification', 'Environmental compliance', 'Maximizing the operating range of every instrument'],
-        correct: 3, explain: 'Instruments are sized for the actual operating envelope — running a valve at 5% open is BAD (poor controllability, erosion). Wider range ≠ better.' },
-      { type: 'error', prompt: 'Three statements are TRUE, one is FALSE.',
-        statements: [
-          'Disturbances (d) are inputs we cannot or choose not to manipulate',
-          'Open-loop control automatically corrects for disturbances',
-          'The controller acts on the ERROR e = SP − PV',
-          'Setpoints are typically supplied by operations or higher-level optimization'
-        ], wrongIndex: 1, explain: 'Open-loop = no measurement of PV → no information to react to disturbances. This is exactly why feedback exists.' }
+          { left: 'Level in a LARGE, slow tank', right: 'P controller (accuracy not critical)' },
+          { left: 'Flow control (very rapid + noisy)', right: 'PI (avoid D — protects valve)' },
+          { left: 'Temperature control (slow, accuracy needed)', right: 'PID' },
+          { left: 'Composition control', right: 'Usually NOT used as measured variable — analyses too slow' }
+        ], explain: 'Visconti controller-selection rules. The default heuristic: P for slow level, PI for flow/pressure/level-small-tank, PID for temperature. Composition is too slow → use inferential.' },
+      { type: 'mcq', prompt: 'Visconti notes a HIDDEN BENEFIT of derivative action on slow processes:',
+        options: ['Nothing', 'D adds damping → allows MORE AGGRESSIVE P tuning → faster overall response (the trick is: D suppresses the oscillation that high K_c would otherwise cause)', 'Speeds the loop by 50%', 'Eliminates noise'],
+        correct: 1, explain: 'Visconti notes: "D action is more effective on slow processes" because it lets you raise K_c without going underdamped. Net effect: faster, better-damped temperature loops.' }
     ]
   },
   {
-    id: 'L2', date: 'WK2', name: 'Sensors & Measurement Principles', questions: [
-      { type: 'mcq', prompt: 'A thermocouple measures temperature via:',
-        options: ['Resistance change with T (used in Pt100)', 'Seebeck effect — EMF generated at the junction of two dissimilar metals', 'Thermal expansion of a fluid', 'Blackbody radiation'],
-        correct: 1, explain: 'TCs generate a small voltage (mV-range) at the junction proportional to ΔT vs a reference. Cheap, fast, wide range — at the cost of accuracy and cold-junction compensation.' },
-      { type: 'mcq', prompt: 'A Pt100 RTD at 0°C has resistance:',
-        options: ['0 Ω', '100 Ω', '1000 Ω', '50 Ω'],
-        correct: 1, explain: 'Pt100 = platinum, 100 Ω at 0°C. α ≈ 0.00385 Ω/Ω/°C. Pt1000 also exists (1000 Ω at 0°C) — higher resolution for low-current loops.' },
-      { type: 'mcq', prompt: 'For volumetric flow of a clean single-phase liquid, the most common (cheapest) differential-pressure device is:',
-        options: ['Coriolis mass meter', 'Orifice plate', 'Pitot tube', 'Magnetic flowmeter'],
-        correct: 1, explain: 'Orifice plate + DP cell is the workhorse — cheap, standardized (ISO 5167), no moving parts. Coriolis is most accurate but ~10× the cost.' },
-      { type: 'numeric', prompt: 'Orifice equation: Q = K·√(ΔP/ρ). If the measured ΔP DOUBLES, by what factor does the indicated flow Q change? (3 d.p.)',
-        answer: 1.414, tolerance: 0.02, units: '× original',
-        explain: 'Q ∝ √ΔP. Doubling ΔP → Q × √2 ≈ 1.414. This is also why DP-flow signals are typically square-root extracted before display.' },
-      { type: 'match', prompt: 'Match each sensor to its typical strong-suit application.',
-        pairs: [
-          { left: 'Thermocouple', right: 'Wide-range / harsh-environment temperature' },
-          { left: 'Pt100 RTD', right: 'High-accuracy temperature at moderate range' },
-          { left: 'Orifice plate', right: 'Volumetric flow of clean liquid/gas' },
-          { left: 'DP cell on tank', right: 'Liquid level via hydrostatic ΔP' }
-        ], explain: 'Knowing which sensor to pick for a given service is half the instrumentation exam. Match physical principle to the process.' }
+    id: 'L8', date: 'WK8', name: 'Cascade Control', questions: [
+      { type: 'mcq', prompt: 'A CASCADE control loop has:',
+        options: ['One controller in parallel with another', 'TWO controllers in series: a PRIMARY (master) controlling the variable of interest, and a SECONDARY (slave) loop controlling an intermediate variable that affects the primary', 'Two independent loops', 'No measurement'],
+        correct: 1, explain: 'Visconti notes. The primary controller\'s output becomes the SETPOINT of the secondary controller. Classic example: outer temperature loop sets the SP of an inner steam-flow loop.' },
+      { type: 'mcq', prompt: 'The most common application of CASCADE is on FLOW-rate inner loops because:',
+        options: ['Flow loops are slow', 'Flow loops are very FAST → secondary loop must be at least 3–5× faster than primary; flow is faster than most processes', 'Flow loops are easy to design', 'Flow is always measured'],
+        correct: 1, explain: 'Visconti notes: "Flow-rate control loops very often cascaded with other loops." The 3–5× speed ratio is the textbook stability guideline.' },
+      { type: 'mcq', prompt: 'Visconti\'s CSTR example: cooling-water flow disturbance enters via the jacket. A SISO temperature loop reacts slowly. A CASCADE configuration:',
+        options: ['Reacts at the same speed', 'Inner (slave) loop measures T_coolant and reacts BEFORE the disturbance propagates to the reactor temperature → much faster rejection', 'Eliminates the need for the primary loop', 'Adds noise'],
+        correct: 1, explain: 'Visconti CSTR cascade example. The primary T-loop and secondary T_coolant-loop together reject jacket-side disturbances long before the reactor "feels" them.' },
+      { type: 'mcq', prompt: 'In Visconti\'s HEAT EXCHANGER cascade: primary controls EXIT temperature, secondary controls:',
+        options: ['Inlet temperature', 'STEAM FLOW RATE on the heating side — the slave loop is faster (flow evolves with higher speed than T) → compensates steam-supply pressure changes', 'Outlet pressure', 'Wall temperature'],
+        correct: 1, explain: 'Visconti example. Steam-supply P changes show up as flow disturbances; cascade with a flow slave kills them fast. Same architecture used on furnaces (fuel flow) and reboilers.' },
+      { type: 'mcq', prompt: 'Visconti\'s distinction: SISO CASCADE vs MIMO CASCADE:',
+        options: ['Identical', 'SISO cascade: 2 disturbances and 2 processes NOT decoupled — both effects seen at the very outlet. MIMO cascade: secondary-loop disturbance is corrected INSIDE the slave loop before it affects the primary.', 'MIMO is slower', 'SISO uses more sensors'],
+        correct: 1, explain: 'Visconti notes. The MIMO advantage is the fundamental reason cascade exists — decouple inner-side disturbances from the primary variable so the primary loop only sees external/load disturbances.' }
     ]
   },
   {
-    id: 'L3', date: 'WK3', name: 'Signals, Transmitters, Calibration', questions: [
-      { type: 'mcq', prompt: 'The modern standard for analog current signals in instrumentation is:',
-        options: ['0–10 V', '4–20 mA', '0–100 mA', '0–5 V'],
-        correct: 1, explain: '4–20 mA: standard across DCS, PLC, transmitters. Current loops are noise-immune over long distances and self-powered with HART overlay.' },
-      { type: 'mcq', prompt: 'Why is 4 mA chosen as the LIVE ZERO rather than 0 mA?',
-        options: ['Easier to read on a panel meter', 'Distinguishes a real "0% PV" reading from a broken wire (0 mA = open circuit = fault)', 'Lower power consumption', 'IEC mandates 4 mA'],
-        correct: 1, explain: 'Live-zero diagnostic: if the loop reads <3.5 mA you know it\'s a hardware fault, not the process at 0. Critical for safety logic.' },
-      { type: 'mcq', prompt: 'The legacy pneumatic instrumentation signal standard is:',
-        options: ['0–100 kPa', '3–15 psi (≈ 20–100 kPa)', '0–1 bar', '50–150 kPa'],
-        correct: 1, explain: '3 psi at 0%, 15 psi at 100%. Same live-zero philosophy as 4–20 mA. Still found on older plants and intrinsically safe areas.' },
-      { type: 'numeric', prompt: 'A temperature transmitter is calibrated: LRV = 0°C, URV = 100°C, output 4–20 mA. What current corresponds to a process T of 50°C? (mA)',
-        answer: 12, tolerance: 0.2, units: 'mA',
-        explain: 'Linear: I = 4 + (T − LRV)/(URV − LRV) × 16 = 4 + 0.5·16 = 12 mA. Memorize: 4-8-12-16-20 → 0-25-50-75-100%.' },
-      { type: 'error', prompt: 'Three are TRUE, one is FALSE.',
-        statements: [
-          'Transmitter ZERO = lower range value (LRV)',
-          'Transmitter SPAN = URV − LRV',
-          'HART protocol superimposes a digital signal on the 4–20 mA loop',
-          'The 4–20 mA standard is unsuitable for long-distance signal transmission'
-        ], wrongIndex: 3, explain: 'False. Current loops are EXCELLENT for long distances (low voltage-drop sensitivity, immune to EMI). That\'s a key reason they replaced voltage signaling.' }
+    id: 'L9', date: 'WK9', name: 'Override Control & Selectors', questions: [
+      { type: 'mcq', prompt: 'OVERRIDE control is used to:',
+        options: ['Optimize energy use', 'Protect equipment during dangerous situations using SPECIAL SWITCHES — Low Switch Selector (LSS) and High Switch Selector (HSS) — that route the "winning" signal to the actuator', 'Tune a PID loop', 'Add a backup controller'],
+        correct: 1, explain: 'Visconti notes. Override is the safety bridge between normal control and Safety Instrumented Systems (SIS).' },
+      { type: 'mcq', prompt: 'In Visconti\'s BOILER example with override (LSS protecting heating coil):',
+        options: ['LSS = Low Switch Selector — selects the LOWER of the two controller outputs (pressure controller vs level controller) — protects the heating coil from becoming uncovered', 'LSS selects the HIGHER signal', 'LSS picks randomly', 'LSS is just an alarm'],
+        correct: 0, explain: 'Visconti notes. Boiler heating coil MUST stay submerged. The level controller will produce a lower valve command than the pressure controller when level is low; LSS picks the lower → safer.' },
+      { type: 'mcq', prompt: 'HSS (High Switch Selector) is typically used:',
+        options: ['On level control', 'To prevent EXCESSIVE pressure in a steam line or compressor discharge — selects the higher-priority limiting signal', 'For temperature only', 'Never industrially'],
+        correct: 1, explain: 'Visconti notes. HSS protects against over-pressurization by giving the most-restrictive signal authority over the valve.' },
+      { type: 'mcq', prompt: 'Override is conceptually DIFFERENT from cascade because:',
+        options: ['They are identical', 'CASCADE makes two loops work together in series (master → slave SP). OVERRIDE makes two loops COMPETE for the actuator; the override selector picks the "winner" only when safety limits are about to be violated.', 'Override has no controller', 'Override is for level only'],
+        correct: 1, explain: 'Visconti notes. Cascade = cooperation. Override = competition with a referee. Override is often combined with cascade in industrial loops (e.g., distillate purity cascade with a column-flooding override).' },
+      { type: 'mcq', prompt: 'In Visconti\'s MIMO-CASCADE description, the key benefit is:',
+        options: ['Lower hardware cost', 'Disturbances arising WITHIN the SECONDARY loop are corrected by the secondary controller BEFORE they can affect the value of the primary controlled output', 'No sensors needed', 'Always uses PID'],
+        correct: 1, explain: 'Visconti slide on cascade. The "early-warning" pattern is the architectural reason cascade outperforms a SISO loop with a fast outer controller — fast control deep inside the process, not just at the end.' }
     ]
   },
   {
-    id: 'L4', date: 'WK4', name: 'Process Modeling (Time Domain)', questions: [
-      { type: 'mcq', prompt: 'For a tank of cross-section A with gravity outflow F = c·h (linearized), the time constant is:',
-        options: ['τ = A/c', 'τ = A·c', 'τ = c/A', 'τ = A·h_s/F_s'],
-        correct: 0, explain: 'From dh/dt = (F_in − c·h)/A, the homogeneous eigenvalue is −c/A → τ = A/c. The geometry (A) sets capacity; the resistance (c) sets drainage rate.' },
-      { type: 'mcq', prompt: 'Species-A mass balance on an isothermal CSTR (constant V, A → B with r = k·C_A):',
-        options: ['V dC_A/dt = F(C_A,0 − C_A) − k·C_A·V', 'F·C_A,0 = F·C_A + r·V (only true at SS)', 'dC_A/dt = −k·C_A (drops convection)', 'C_A = C_A,0 / (1 + k·τ) (only true at SS)'],
-        correct: 0, explain: 'Full dynamic balance: accumulation = in − out − generation. Options B and D are valid only at steady state; option C drops the flow terms.' },
-      { type: 'mcq', prompt: 'A "self-regulating" process is one that, after a step input change:',
-        options: ['Returns to its original value', 'Settles at a new steady state without controller action', 'Oscillates indefinitely', 'Diverges'],
-        correct: 1, explain: 'Self-regulating = naturally finds a new SS. Examples: tank with gravity outflow, heat exchanger. Non-self-regulating = pure integrator (tank with positive-displacement pump out).' },
-      { type: 'numeric', prompt: 'Linearized tank: A = 1 m², τ = 5 min, gain K = 2 m/(m³/h). Step Δq_in = 0.5 m³/h. Final steady-state Δh = K·Δq = ? (m)',
-        answer: 1, tolerance: 0.02, units: 'm',
-        explain: 'For a 1st-order self-regulating system, new-SS deviation = (steady gain) × (step magnitude) = 2·0.5 = 1 m. Time to reach it is governed by τ.' },
-      { type: 'match', prompt: 'Match each unit to its typical dominant time constant.',
-        pairs: [
-          { left: 'Bare thermocouple in liquid', right: 'Seconds' },
-          { left: 'Pressure in a gas pipe', right: 'Sub-second' },
-          { left: 'Surge tank level', right: 'Minutes' },
-          { left: 'Distillation column composition', right: 'Hours' }
-        ], explain: 'Order-of-magnitude thinking saves you in tuning. A controller faster than the dominant τ over-corrects; slower than τ under-corrects.' }
-    ]
-  },
-  {
-    id: 'L5', date: 'WK5', name: 'First & Second Order Dynamics', questions: [
-      { type: 'mcq', prompt: 'For a 1st-order step response, at t = 3τ the response reaches what % of the final value?',
-        options: ['63.2%', '86.5%', '95.0%', '99.3%'],
-        correct: 2, explain: 'y(3τ)/y(∞) = 1 − e⁻³ ≈ 0.950. The "1-3-5 τ rule": 63% / 95% / 99% reached at 1τ / 3τ / 5τ.' },
-      { type: 'mcq', prompt: 'A 2nd-order OVERDAMPED step response (ζ > 1) shows:',
-        options: ['Oscillation around the final value', 'Monotonic approach to SS, no overshoot, slower than critical damping', 'Initial inverse response', 'Divergence'],
-        correct: 1, explain: 'Two real distinct poles. Slower than ζ=1 but smooth — favored when overshoot is unacceptable (e.g., reactor T near runaway).' },
-      { type: 'numeric', prompt: 'A 1st-order system has τ = 4 min. Approximate 5%-settling time? (min)',
-        answer: 12, tolerance: 0.5, units: 'min',
-        explain: 't_settle (5%) ≈ 3τ = 12 min. Useful rule of thumb for sizing closed-loop response targets.' },
-      { type: 'mcq', prompt: 'A 2nd-order UNDERDAMPED step with ζ = 0.4. Approximate peak overshoot M_p?',
-        options: ['~5%', '~15%', '~25%', '~45%'],
-        correct: 2, explain: 'M_p = exp(−πζ/√(1−ζ²)) = exp(−π·0.4/√0.84) ≈ 25%. ζ = 0.7 gives ~5% (a common design target).' },
-      { type: 'error', prompt: 'One statement is FALSE.',
-        statements: [
-          'Time constant τ has units of time',
-          'Steady-state gain K is dimensional (output units per input units)',
-          'Damping ratio ζ is dimensionless',
-          'A HIGHER damping ratio means a FASTER response'
-        ], wrongIndex: 3, explain: 'Backwards. Higher ζ → MORE damped → SLOWER (but smoother). Speed and damping trade off; tuning is the art of choosing the balance.' }
-    ]
-  },
-  {
-    id: 'L6', date: 'WK6', name: 'Feedback Control: P, PI, PID', questions: [
-      { type: 'mcq', prompt: 'P-controller output: u(t) = K_c·e(t) + u_bias. Increasing K_c generally:',
-        options: ['Slows response, increases stability', 'Speeds response, reduces stability margin (eventually causes oscillation)', 'Always destabilizes immediately', 'Eliminates offset'],
-        correct: 1, explain: 'Higher K_c = stiffer, faster, but trades against stability. At K_c = K_cu (ultimate gain) the loop sits on the stability boundary.' },
-      { type: 'mcq', prompt: 'Why does PI eliminate the steady-state offset that P alone leaves?',
-        options: ['Integral term keeps changing u while e ≠ 0, so e must drive to 0 at SS', 'P term is doubled', 'D term acts', 'Bias is automatically updated'],
-        correct: 0, explain: 'At SS, dI/dt = 0 requires e = 0 — that\'s the definition of integral action. P alone cannot do this because u_bias is fixed.' },
-      { type: 'mcq', prompt: 'Derivative kick is:',
-        options: ['Integrator wind-up', 'The large derivative-term spike when the SETPOINT steps instantaneously', 'Valve hunting at low opening', 'A safety interlock'],
-        correct: 1, explain: 'A step in SP means a huge instantaneous de/dt → huge D term → big bump to MV. Fix: take derivative on PV (not error) — "derivative-on-PV" mode.' },
-      { type: 'numeric', prompt: 'P-controller K_c = 5 (with u_bias = 0). Error e = 0.4. Controller output u?',
-        answer: 2, tolerance: 0.01, units: '',
-        explain: 'u = K_c · e + u_bias = 5 · 0.4 + 0 = 2. Trivially the proportional term defines the controller\'s "stiffness".' },
-      { type: 'error', prompt: 'One is FALSE.',
-        statements: [
-          'Direct-acting controller: output INCREASES when PV increases above SP',
-          'Reverse-acting controller: output DECREASES when PV increases above SP',
-          'Direct vs reverse is chosen based on process gain sign AND valve fail-action (FO/FC)',
-          'Action mode (direct/reverse) is a cosmetic display setting only'
-        ], wrongIndex: 3, explain: 'Action mode is FUNCTIONAL — get it backwards and you have positive feedback (the loop runs away). It\'s chosen so the overall loop gain is negative.' }
-    ]
-  },
-  {
-    id: 'L7', date: 'WK7', name: 'Controller Tuning', questions: [
-      { type: 'mcq', prompt: 'Ziegler–Nichols OPEN-loop (Process Reaction Curve) tuning is based on:',
-        options: ['Sustained closed-loop oscillation', 'Fitting a FOPDT model (K, τ, θ) to a step response', 'A Bode plot', 'Manual rule of thumb only'],
-        correct: 1, explain: 'PRC: step the input, log the response, fit first-order-plus-deadtime, plug K, τ, θ into the Z–N table. Quick first-pass tuning.' },
-      { type: 'mcq', prompt: 'Ziegler–Nichols CLOSED-loop ("continuous cycling") method requires:',
-        options: ['An open-loop step', 'Ultimate gain K_cu and ultimate period P_u at the onset of sustained oscillation', 'A pole-zero map', 'Cohen–Coon coefficients'],
-        correct: 1, explain: 'Disable I and D, raise K_c until sustained oscillation, read K_cu and P_u. Then Z–N PID: K_c = 0.6·K_cu, τ_I = P_u/2, τ_D = P_u/8.' },
-      { type: 'numeric', prompt: 'Z–N closed-loop tuning: K_cu = 10, P_u = 4 min. PID gives K_c = 0.6·K_cu = ?',
-        answer: 6, tolerance: 0.05, units: '',
-        explain: 'K_c = 0.6·10 = 6. Companions: τ_I = P_u/2 = 2 min, τ_D = P_u/8 = 0.5 min. Z–N is aggressive — usually you back off after testing.' },
-      { type: 'mcq', prompt: 'Compared to Ziegler–Nichols, the Cohen–Coon method:',
-        options: ['Is for closed-loop only', 'Uses the same FOPDT parameters and is tighter for processes with significant dead time', 'Ignores deadtime', 'Requires a Bode plot'],
-        correct: 1, explain: 'Cohen–Coon was designed specifically for dead-time-dominant FOPDT (θ/τ > ~0.3). Tighter than Z–N at the cost of more sensitivity to model error.' },
-      { type: 'error', prompt: 'One is FALSE.',
-        statements: [
-          'Tuning is almost always iterative, not one-shot',
-          'Aggressive tuning gives fast response but more overshoot/oscillation',
-          'Conservative tuning gives slow but smooth response',
-          'A single set of PID parameters works on any process'
-        ], wrongIndex: 3, explain: 'Each loop has its own personality (dynamics + disturbance profile). Universal tuning is the myth that sells DCS auto-tuners.' }
-    ]
-  },
-  {
-    id: 'L8', date: 'WK8', name: 'Valves & Advanced Loops', questions: [
-      { type: 'mcq', prompt: 'In the liquid control-valve equation Q = C_v·√(ΔP/SG), C_v represents:',
-        options: ['Valve cost coefficient', 'Flow capacity — gallons/min of water at 1 psi drop', 'Valve travel position', 'A cavitation safety margin'],
-        correct: 1, explain: 'C_v is the imperial flow coefficient; K_v is the metric equivalent. Sizing rule: choose valve so it sits roughly 60–80% open at design flow.' },
-      { type: 'mcq', prompt: 'An EQUAL-PERCENTAGE valve characteristic means:',
-        options: ['Linear flow vs stem position', 'Equal % change in flow per equal % change in stem position (exponential)', 'Always fully open or closed', 'Max flow at 50% travel'],
-        correct: 1, explain: 'Equal-%: dQ/dx ∝ Q. Compensates installed characteristic when most pressure drop is across piping. Linear valves preferred when ΔP across valve is roughly constant.' },
-      { type: 'mcq', prompt: 'CASCADE control improves disturbance rejection when:',
-        options: ['Inner (secondary) loop is FASTER than outer and the disturbance enters near the MV', 'There is no outer-loop measurement', 'The MV is constant', 'The setpoint never moves'],
-        correct: 0, explain: 'Rule of thumb: inner loop should be at least 3–5× faster than outer. Classic example: outer T loop sets the SP of an inner steam-flow loop.' },
-      { type: 'mcq', prompt: 'FEEDFORWARD control requires:',
-        options: ['Only a CV measurement', 'A disturbance measurement AND a model of the disturbance path', 'Stability analysis', 'Manual operator action'],
-        correct: 1, explain: 'No measurement of the disturbance → no feedforward possible. No model → no compensation calc. FF complements feedback; it does not replace it.' },
-      { type: 'mcq', prompt: 'Fail-safe action of a control valve on the STEAM supply to a highly exothermic reactor should be:',
-        options: ['Fail open', 'Fail closed (stop the heating on loss of air/power)', 'Fail in last position', 'No preference'],
-        correct: 1, explain: 'On loss of instrument air, the valve must drive to the SAFE state. For exothermic heating: cut steam (fail-closed). For cooling water: keep it flowing (fail-open).' }
+    id: 'L10', date: 'WK10', name: 'Pressure Safety & Relief Devices', questions: [
+      { type: 'mcq', prompt: 'Visconti\'s safety hierarchy from normal operation to disaster has FIVE stages. Order them.',
+        options: ['Alarm → BPCS → SIS → Explosion → Relief', 'STAGE 1 BPCS (Basic Process Control System) → STAGE 2 ALARM → STAGE 3 SIS (Safety Instrumented System) → STAGE 4 RELIEF (PRD) → STAGE 5 Explosion/Implosion', 'Relief → BPCS → Alarm', 'Random'],
+        correct: 1, explain: 'Visconti pressure-safety notes. Each layer is the LAST LINE before the next. SIS is automated, operator-independent. Relief is the mechanical / last-resort defense. Reaching stage 4 already means the operator probably gets reassigned.' },
+      { type: 'mcq', prompt: 'Visconti distinguishes four hazard-control strategies. Which is the WEAKEST per his slides?',
+        options: ['Inherent (eliminate the hazard — e.g., don\'t work under pressure)', 'PROCEDURAL (safety instructions taught to operators) — Visconti: "this is the weakest way of dealing with a problem!"', 'Passive (design the equipment for the worst credible pressure)', 'Active (PRDs that act on the cause)'],
+        correct: 1, explain: 'Visconti notes. Hierarchy: inherent > passive > active > procedural. Procedural is weakest because human compliance is unreliable. Industry standard: combine PASSIVE + ACTIVE.' },
+      { type: 'mcq', prompt: 'Pressure Relief Devices (PRDs) split into:',
+        options: ['Manual and automatic', 'RECLOSABLE (PSV spring-type, dead weight, pilot, controlled) and NON-RECLOSABLE (rupture disk, pin-actuated devices)', 'Hot and cold', 'Liquid and gas'],
+        correct: 1, explain: 'Visconti notes. Reclosable: limits release, recloses when safe pressure restored — preferred when possible. Non-reclosable: faster activation but releases entire contents → environmental issue.' },
+      { type: 'mcq', prompt: 'A RUPTURE DISK is preferred over a Pressure Safety Valve when:',
+        options: ['Always', 'Activation must be VERY FAST and the application can tolerate full release (no resealing). Often used as a backup downstream of a PSV.', 'Re-closing is critical', 'Low-temperature service'],
+        correct: 1, explain: 'Visconti notes. Disks: forward-dome (solid/scored/hinged), reverse-dome (withstands higher process P), flat (most common, HVAC). The rupture-pin valve is a modern alternative — easier maintenance, 10× faster pin change vs disk change.' },
+      { type: 'mcq', prompt: 'For maintenance ISOLATION of equipment, Visconti rates DOUBLE BLOCK AND BLEED (DBB) as:',
+        options: ['Least secure', 'MOST SECURE form of valve isolation — two valves in series with a bleed valve between them, vented to a safe location', 'Same as single valve', 'Same as a blind'],
+        correct: 1, explain: 'Visconti notes. Block valves closed, bleed valve open during maintenance → any leakage through the upstream block valve is bled away safely, cannot reach the worker. Industry standard for hazardous services.' }
     ]
   }
 ];
 
-// Boss round: shuffled mix + a few exclusive integrative questions
+// Boss round: integrative cross-lecture questions
 const BOSS_EXCLUSIVE = [
-  { type: 'mcq', prompt: 'A control loop is "hunting" — oscillating around setpoint with small amplitude. First diagnostic move:',
-    options: ['Increase K_c', 'Decrease K_c and/or increase τ_I (back off)', 'Add or increase D action immediately', 'Switch to manual indefinitely'],
-    correct: 1, explain: 'Hunting = under-damped tuning. Detune first. D-action without P/I rebalance can amplify noise. Manual is a non-solution.' },
-  { type: 'mcq', prompt: 'A control valve has been running at <10% open for months. The consequence is:',
-    options: ['Maximum energy efficiency', 'Poor controllability + erosion: valve is oversized — resize', 'Improved linearity', 'Reduced wear'],
-    correct: 1, explain: 'At low openings, installed gain is high and unstable; flow becomes choppy; trim erodes. Sizing target ~60–80% open at design flow.' },
-  { type: 'mcq', prompt: 'A heat exchanger has θ = 5 min dead time and τ = 10 min. Best initial controller choice:',
-    options: ['Pure P', 'PI with conservative tuning (PID with Smith predictor if available)', 'Pure D', 'On–off'],
-    correct: 1, explain: 'θ/τ = 0.5 is dead-time significant. Pure P leaves offset; D amplifies noise; on-off cycles. PI is the safe default.' },
-  { type: 'mcq', prompt: 'A 4–20 mA loop reads 3.2 mA at the DCS. The correct interpretation is:',
-    options: ['A valid low-end PV reading', 'Loop fault — open wire, dead transmitter, or low loop voltage (live-zero violation)', 'Process is at exactly 0%', 'Calibration is successful'],
-    correct: 1, explain: 'Anything below ~3.5 mA is NAMUR-43 "bad PV" — should trigger alarm and force the controller to safe state. The live-zero exists exactly for this diagnostic.' },
-  { type: 'numeric', prompt: 'Pt100 RTD reads 138.5 Ω. Approximate temperature using R = R₀(1 + α·T) with R₀ = 100 Ω at 0°C and α = 0.00385 /°C. T ≈ ? (°C, nearest integer)',
-    answer: 100, tolerance: 2, units: '°C',
-    explain: 'T = (R/R₀ − 1)/α = (1.385 − 1)/0.00385 ≈ 100°C. The Pt100 nominal calibration point you should memorize: 100 Ω at 0°C, ~138.5 Ω at 100°C.' }
+  { type: 'mcq', prompt: 'You are designing a control system for a jacketed exothermic CSTR. The primary control objective is to keep reactor T constant despite fluctuations in cooling-water supply. The CORRECT architecture per Visconti is:',
+    options: ['SISO P-controller on reactor T', 'CASCADE: primary (master) PID on reactor T sets the SP of a secondary (slave) PI on coolant flow — slave loop rejects the cooling-water disturbance before it reaches the reactor', 'On-off', 'Open loop'],
+    correct: 1, explain: 'Visconti CSTR cascade example. Reactor T responds slowly to coolant flow changes; cascade catches the disturbance in the FAST inner loop before the slow outer loop has to react.' },
+  { type: 'mcq', prompt: 'A boiler with electric heating coils MUST keep the coils submerged. You design a PRESSURE loop and a LEVEL loop sharing one outlet valve. Per Visconti, the correct safety architecture is:',
+    options: ['Tune both controllers identically', 'Use a LOW SWITCH SELECTOR (LSS) on the two controller outputs — whichever signal is LOWER (more restrictive on outflow) wins → keeps level from dropping, protects coils', 'Use HSS', 'Ignore level'],
+    correct: 1, explain: 'Visconti override example. LSS for level-protective overrides; HSS for over-pressure protection. The "winning" controller depends on which limit is most violated.' },
+  { type: 'mcq', prompt: 'A high-K_c P-loop on a small fast tank gives 30% overshoot. What\'s the FIRST diagnostic move per Visconti\'s controller-selection rules?',
+    options: ['Add D action', 'Replace P with PI and use moderate K_c — fast loops on small tanks need accuracy more than raw speed; PI gives offset-free response without the overshoot of aggressive P', 'Increase K_c further', 'Switch to manual'],
+    correct: 1, explain: 'Visconti rule: small/fast tank → PI. Big/slow tank → P (accuracy not critical). Don\'t add D on level — agitated free surface = noisy signal → D term spikes.' },
+  { type: 'numeric', prompt: 'A 1st-order temperature loop has τ = 4 min and gain K_p = 2. With a P-controller K_c = 3, what is the closed-loop time constant τ_CL?',
+    answer: 0.571, tolerance: 0.05, units: 'min',
+    explain: 'τ_CL = τ_p/(1 + K_c·K_p) = 4/(1 + 6) = 4/7 ≈ 0.571 min. Higher K_c → faster CL, smaller offset, but more risk of saturation/noise/oscillation for higher-order processes.' },
+  { type: 'mcq', prompt: 'Choosing between PASSIVE and ACTIVE pressure-safety solutions, Visconti recommends:',
+    options: ['Always passive', 'Always active', 'Use a COMBINATION of BOTH — passive (design walls for max credible P) for peace of mind + active (PRDs) for unknown/exceptional scenarios', 'Procedural is fine'],
+    correct: 2, explain: 'Visconti notes. Passive solutions are great but expensive and need periodic design validation. Active solutions are easier to monitor by regulators but need periodic functional testing. Combine for layered safety — never rely on one alone.' }
 ];
 
 // ============================================================
@@ -695,10 +713,10 @@ function renderTitle() {
   const continueDisabled = completed === 0 && state.totalXp === 0;
   app.innerHTML = `
     <div class="title-screen">
-      <div class="subtitle">POLITECNICO · MILANO · MANCA · Y2 SEM 1</div>
+      <div class="subtitle">POLITECNICO · MILANO · VISCONTI · Y2 SEM 1 (PC&IL)</div>
       <div class="title">PCI</div>
       <div class="subtitle">CHALLENGE · INSTRUMENTATION LOCKDOWN</div>
-      <div class="tagline">8 rooms. Sensors, valves, loops. The prerequisite finally weaponized.</div>
+      <div class="tagline">10 rooms. Dynamics, PID, cascade, override, PRDs — the prerequisite course, weaponized.</div>
       <div class="boot-log" id="bootLog"></div>
       <div class="mt-lg">
         <button class="btn" onclick="goMap()">${continueDisabled ? 'INITIATE' : 'CONTINUE'}</button>
@@ -711,7 +729,7 @@ function renderTitle() {
     '> loading instrumentation map ... <span class="ok">OK</span>',
     `> rooms detected: <span class="ok">${total}</span> · cleared: <span class="ok">${completed}</span>`,
     `> total XP: <span class="ok">${state.totalXp}</span> · best streak: <span class="warn">${state.bestStreak}</span>`,
-    '> reference: Manca, PCI lecture notes',
+    '> reference: Visconti slides + lab.docx (Stephanopoulos textbook)',
     '> 4-20 mA loop <span class="ok">HEALTHY</span>. proceed.'
   ]);
 }
@@ -764,7 +782,7 @@ function renderMap() {
   html += `
     <div class="map-header">
       <div class="map-title">// INSTRUMENTATION MAP</div>
-      <div class="map-sub">Clear rooms in order. 4/5 correct unlocks the next room. 5/5 = 3 stars. PCI by Manca.</div>
+      <div class="map-sub">Clear rooms in order. 4/5 correct unlocks the next room. 5/5 = 3 stars. PC&IL by Visconti.</div>
     </div>
     <div class="room-grid">
   `;
