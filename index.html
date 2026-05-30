@@ -386,6 +386,11 @@
   .pika-tag{position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);background:var(--accent);color:#04120c;font-size:10px;font-weight:700;letter-spacing:1px;padding:2px 9px;border-radius:8px;box-shadow:0 0 8px rgba(0,255,159,0.7);pointer-events:none;white-space:nowrap;}
   @keyframes pikaBob{0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);}}
   @keyframes pikaPulse{0%,100%{transform:scale(0.9);opacity:0.5;}50%{transform:scale(1.25);opacity:0.9;}}
+  /* ===== ADMIN ACCESS ===== */
+  .admin-bar{display:flex;justify-content:flex-end;align-items:center;gap:10px;margin:-4px 0 14px;flex-wrap:wrap;}
+  .admin-link{background:transparent;border:1px solid var(--locked);color:var(--muted);font-family:inherit;font-size:11px;letter-spacing:1px;text-transform:uppercase;padding:5px 11px;border-radius:7px;cursor:pointer;transition:all .15s ease;}
+  .admin-link:hover{border-color:var(--accent);color:var(--accent);box-shadow:0 0 10px rgba(0,255,159,0.25);}
+  .admin-on{color:var(--accent);font-size:11px;letter-spacing:1px;text-shadow:0 0 8px rgba(0,255,159,0.5);}
 </style>
 </head>
 <body>
@@ -654,6 +659,7 @@ function defaultState() {
   return {
     screen: 'title',
     lives: 5,
+    admin: false,
     score: 0,
     streak: 0,
     bestStreak: 0,
@@ -689,6 +695,7 @@ function save() {
       lives: state.lives, score: state.score, bestStreak: state.bestStreak,
       totalXp: state.totalXp, progress: state.progress,
       bossUnlocked: state.bossUnlocked, bossDone: state.bossDone,
+      admin: state.admin,
     };
     localStorage.setItem(SAVE_KEY, JSON.stringify(persist));
   } catch (e) {}
@@ -820,13 +827,18 @@ function renderMap() {
       <div class="map-title">// INSTRUMENTATION MAP</div>
       <div class="map-sub">Clear rooms in order. 4/5 correct unlocks the next room. 5/5 = 3 stars. PC&IL by Visconti.</div>
     </div>
+    <div class="admin-bar">
+      ${state.admin
+        ? '<span class="admin-on">&#128275; ADMIN MODE &mdash; every room unlocked</span> <button class="admin-link" onclick="promptAdmin()">EXIT</button>'
+        : '<button class="admin-link" onclick="promptAdmin()">&#128274; admin access</button>'}
+    </div>
     <div class="room-grid">
   `;
   let prevCompleted = true;
   for (let i = 0; i < ROOMS.length; i++) {
     const r = ROOMS[i];
     const p = state.progress[r.id] || { stars: 0, mastery: 0, completed: false };
-    const unlocked = prevCompleted || p.completed;
+    const unlocked = prevCompleted || p.completed || state.admin;
     const cls = p.completed ? 'completed' : (unlocked ? 'unlocked' : 'locked');
     const stars = p.stars > 0 ? '★'.repeat(p.stars) + '☆'.repeat(3 - p.stars) : '';
     const mastery = p.completed ? `${p.mastery}%` : '';
@@ -847,16 +859,17 @@ function renderMap() {
 
   // Boss
   const allDone = ROOMS.every(r => state.progress[r.id]?.completed);
-  const bossCls = state.bossDone ? 'completed boss' : (allDone ? 'unlocked boss' : 'locked boss');
+  const bossOpen = allDone || state.admin;
+  const bossCls = state.bossDone ? 'completed boss' : (bossOpen ? 'unlocked boss' : 'locked boss');
   html += `
-    <div class="room-card ${bossCls}" ${allDone ? 'onclick="startBoss()"' : ''}>
+    <div class="room-card ${bossCls}" ${bossOpen ? 'onclick="startBoss()"' : ''}>
       <div>
         <div class="room-id" style="color: var(--danger);">★ FINAL ROUND</div>
         <div class="room-name">EXAM SIMULATION — Mixed Topics · No Hints · Timer</div>
         <div class="room-date">All lectures · Stephanopoulos boss fight</div>
       </div>
       <div class="room-footer">
-        ${allDone ? (state.bossDone ? `<span class="stars">★★★</span><span style="color:var(--danger)">CLEARED</span>` : '<span style="color: var(--danger);">▶ ENTER</span>') : '<span class="lock-icon">🔒 CLEAR ALL ROOMS</span>'}
+        ${bossOpen ? (state.bossDone ? `<span class="stars">★★★</span><span style="color:var(--danger)">CLEARED</span>` : '<span style="color: var(--danger);">▶ ENTER</span>') : '<span class="lock-icon">🔒 CLEAR ALL ROOMS</span>'}
       </div>
     </div>
   `;
@@ -1352,6 +1365,29 @@ function _pikaUpdate() {
 }
 const _pikaOrigRender = render;
 render = function() { _pikaOrigRender(); _pikaUpdate(); };
+
+// ============================================================
+// ADMIN ACCESS PASSWORD
+// ============================================================
+const ADMIN_PASSWORD = 'pikachu';   // <-- change this to set a new master password
+function promptAdmin() {
+  if (state.admin) {
+    if (confirm('Admin mode is ON — every room is unlocked. Turn it OFF?')) {
+      state.admin = false; save(); render();
+    }
+    return;
+  }
+  const entry = prompt('Enter admin password to unlock every room:');
+  if (entry === null) return;
+  if (entry === ADMIN_PASSWORD) {
+    state.admin = true; save();
+    try { sfx.unlock(); } catch (e) {}
+    render();
+  } else {
+    try { sfx.wrong(); } catch (e) {}
+    alert('Access denied — wrong password.');
+  }
+}
 
 render();
 </script>
